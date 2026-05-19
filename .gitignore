@@ -36,6 +36,9 @@ previews/
 # Claude Code per-machine settings (permission allowlists, etc.)
 .claude/settings.local.json
 
+# Session-handoff scratch state (personal workflow notes, not project content)
+.remember/
+
 # ---------- Editor / IDE ----------
 .vscode/
 .idea/
