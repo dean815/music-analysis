@@ -1,16 +1,16 @@
 # music-analysis
 
-<!-- TODO(dean): write a 2-4 sentence project description here.
-     Things you might want to mention:
-       - that this is a personal toolkit for analyzing your own compositions
-       - that it combines audio-domain (librosa/pyin) and symbolic-domain (music21) analysis
-       - what kinds of questions it answers (key/mode, chord progression, structural form, lead-line melodic content)
-       - that it grew out of analyzing a specific piece and may not yet generalize
-     Delete this comment when done. -->
+This project provides a tool that takes audio input and analyzes the musical
+content — tempo, key/mode, chord progression, structural form, and melodic
+content. MusicXML files can also be provided for more intentional analysis
+using exact note information rather than estimates from audio features.
+Beyond analysis, the tool offers suggestions for musical ideas that could
+be used to complete or extend a piece, and generates MIDI and audio
+renderings of those ideas so they can be auditioned directly or imported
+into a DAW.
 
-A toolkit for analyzing musical pieces from both their audio bounce and their MusicXML
-score, with cross-checks between the two. Built around `librosa` + `pyin` for audio
-features and `music21` for symbolic harmonic analysis.
+Built around `librosa` + `pyin` for audio features and `music21` for
+symbolic harmonic analysis.
 
 ## Setup
 
@@ -69,10 +69,4 @@ history — verify with `git log -p | grep '/Users/' ` after any changes.
 
 ## License
 
-<!-- TODO(dean): pick a license. Common choices for a personal toolkit:
-     - MIT: maximally permissive
-     - CC BY-NC 4.0: share-alike, non-commercial
-     - "All rights reserved" (no license file = no license = no permission to redistribute)
-     Until you pick, the absence of a LICENSE file means default copyright applies. -->
-
-No license selected yet — see TODO above.
+MIT License — see [LICENSE](LICENSE).
