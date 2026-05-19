@@ -1,0 +1,48 @@
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# ---------- Project artifacts (regenerable) ----------
+out/
+previews/
+
+# Audio + MIDI files anywhere in the tree.
+# Scripts produce these from inputs you point at via env vars; they don't
+# belong in version control. Remove these lines if you decide to track demos.
+*.wav
+*.aif
+*.aiff
+*.flac
+*.mp3
+*.mid
+*.midi
+
+# ---------- Local config / secrets ----------
+# The .env file holds your personal MUSIC_AUDIO/MUSIC_XML paths.
+# .env.example IS tracked (template) but .env itself is private.
+.env
+.env.local
+
+# Claude Code per-machine settings (permission allowlists, etc.)
+.claude/settings.local.json
+
+# ---------- Editor / IDE ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- OS junk ----------
+.DS_Store
+Thumbs.db

@@ -1,0 +1,11 @@
+# Audio analysis
+librosa>=0.11
+soundfile>=0.12
+scipy>=1.10
+numpy>=1.24
+
+# Plotting
+matplotlib>=3.6
+
+# Symbolic music (MusicXML parsing, Roman numeral analysis)
+music21>=10.0
