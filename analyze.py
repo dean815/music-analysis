@@ -82,6 +82,22 @@ mask = (bpms >= 40) & (bpms <= 220)
 top_bpms = bpms[mask][np.argsort(ac_global[mask])[::-1][:5]]
 print(f"top tempogram BPMs: {[round(float(b), 2) for b in top_bpms]}")
 
+# Warn when beat_track tempo is ~2× a strong tempogram peak — a common
+# failure mode on half-time R&B, hip-hop, and ballads where the hi-hat
+# is louder than the kick.
+half_tempo = tempo / 2.0
+half_time_suspected = False
+for tb in top_bpms:
+    if abs(tb - half_tempo) / max(half_tempo, 1e-6) < 0.05:  # within 5%
+        half_time_suspected = True
+        print(
+            f"\nWARNING: beat_track ({tempo:.1f} BPM) ≈ 2× tempogram peak "
+            f"({tb:.1f} BPM).\n"
+            f"  Song may have a half-time feel; {tb:.2f} BPM may be the true pulse.\n"
+            f"  If so: python3 analyze_v3.py --audio <file> --bpm {tb:.2f}"
+        )
+        break
+
 # ------------------------- 3. Key / mode -------------------------------
 banner("KEY / MODE")
 
@@ -278,6 +294,7 @@ summary = {
     "side_to_mid_db": float(side_to_mid_db),
     "tempo_bpm": tempo,
     "tempogram_top_bpms": [float(b) for b in top_bpms],
+    "half_time_suspected": half_time_suspected,
     "mean_chroma": {p: float(v) for p, v in zip(PITCHES, chroma_mean)},
     "key_candidates": [
         {"root": r, "mode": m, "score": float(s)} for s, r, m in candidates[:8]

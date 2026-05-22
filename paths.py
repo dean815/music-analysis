@@ -12,6 +12,7 @@ Output directories default to ./out and ./previews under the project root.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -89,3 +90,23 @@ def ensure_dir(path: Path) -> Path:
     """Create a directory if it doesn't exist, return it."""
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def load_summary(out_dir: Path) -> dict:
+    """Load the summary.json that analyze.py writes into its --out directory.
+
+    Downstream scripts (analyze_v3.py, melody.py, etc.) call this to pick up
+    tempo, section boundaries, and key candidates rather than recomputing
+    them or — worse — hardcoding them.
+
+    Exits with a helpful message if the file isn't there, since "run
+    analyze.py first" is the canonical workflow.
+    """
+    p = Path(out_dir) / "summary.json"
+    if not p.exists():
+        sys.exit(
+            f"error: no summary.json in {out_dir}.\n"
+            f"  run `python3 analyze.py --audio <file> --out {out_dir}` first."
+        )
+    with open(p) as f:
+        return json.load(f)
