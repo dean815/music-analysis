@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Import-check shared modules
+        run: python -c "import paths, modes"
+
+      - name: Smoke-test each script (--help)
+        run: |
+          set -e
+          for f in analyze.py analyze_v2.py analyze_v3.py melody.py \
+                   xml_analyze.py xml_aligned.py xml_guitars.py \
+                   generate_previews.py splice_transitions.py real_book.py \
+                   modal_prior.py; do
+            echo "=== $f ==="
+            python3 "$f" --help
+          done
