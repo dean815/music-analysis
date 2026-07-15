@@ -43,6 +43,7 @@ any script with `--help` to see its specific flags.
 | `xml_guitars.py` | `--guitars-xml` | Pitch histograms per section for guitar/lead parts |
 | `generate_previews.py` | `--previews` (out) | Synthesizes audio + MIDI of hypothetical chord progressions |
 | `splice_transitions.py` | `--audio`, `--previews` | Crossfades synth previews into the start of your bounce for transition auditioning |
+| `real_book.py` | `--out` | Renders a Real Book-style ASCII lead sheet from `analyze_v3.py`'s chord chart, with loop detection and section labels |
 | `paths.py` | — | Shared config helper (env vars + argparse) used by all scripts |
 | `modal_prior.py` | — | **Work-in-progress.** Scaffold for a modal-diatonic prior to bias chord detection toward harmonically plausible chords. The function body is intentionally unimplemented; see the docstring for the policy choices to fill in. |
 
