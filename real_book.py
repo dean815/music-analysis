@@ -6,9 +6,9 @@ point boundary drift), and renders an ASCII lead sheet with 4 bars per
 line, a detected repeating loop, and section markers.
 
 Usage:
-    python3 real_book.py --out ./out/kitchen
-    python3 real_book.py --out ./out/kitchen --title "Kitchen" --artist "SZA"
-    python3 real_book.py --out ./out/kitchen --bpm 80.75 --bars-per-line 4
+    python3 real_book.py --out ./out/my-song
+    python3 real_book.py --out ./out/my-song --title "Song Title" --artist "Artist Name"
+    python3 real_book.py --out ./out/my-song --bpm 80.75 --bars-per-line 4
 """
 from __future__ import annotations
 
