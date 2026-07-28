@@ -67,6 +67,26 @@ banner("TEMPO + BEATS")
 tempo_arr, beats = librosa.beat.beat_track(y=y, sr=sr, units="frames")
 tempo = float(np.atleast_1d(tempo_arr)[0])
 beat_times = librosa.frames_to_time(beats, sr=sr)
+
+# beat_track runs on librosa's default 512-sample hop, but the chroma and MFCC
+# features below are computed at hop=2048. Beat frame indices are therefore on a
+# 4x finer grid than those arrays and cannot be used as column indices directly —
+# doing so pushes every index past the end of the array, and librosa.util.sync
+# silently clamps them all into a single slice. Re-grid via seconds instead.
+beat_frames_feat = librosa.time_to_frames(beat_times, sr=sr, hop_length=hop)
+beat_frames_feat = np.unique(np.clip(beat_frames_feat, 0, None))
+# Times matching the re-gridded indices. Columns of anything sync'd against
+# beat_frames_feat line up with these, not with beat_times, since np.unique may
+# merge two beats that land in the same 46 ms feature frame.
+beat_times_feat = librosa.frames_to_time(beat_frames_feat, sr=sr, hop_length=hop)
+
+# librosa.util.sync treats its index array as INTERIOR boundaries: it prepends 0
+# and appends n_frames, so it returns len(idx)+1 columns, not len(idx). Column j
+# therefore spans [seg_bounds[j], seg_bounds[j+1]) in seconds — labelling column j
+# with beat_times_feat[j] would name its END, shifting every chord one beat late
+# and leaving the audio before the first beat unlabelled entirely.
+seg_bounds = np.concatenate(([0.0], beat_times_feat, [duration]))
+
 print(f"tempo (BPM) : {tempo:.2f}")
 print(f"# beats     : {len(beat_times)}")
 if len(beat_times) > 1:
@@ -79,24 +99,47 @@ tempogram = librosa.feature.tempogram(onset_envelope=oenv, sr=sr, hop_length=hop
 ac_global = np.mean(tempogram, axis=1)
 bpms = librosa.tempo_frequencies(len(ac_global), hop_length=hop, sr=sr)
 mask = (bpms >= 40) & (bpms <= 220)
-top_bpms = bpms[mask][np.argsort(ac_global[mask])[::-1][:5]]
+band_bpms, band_ac = bpms[mask], ac_global[mask]
+top_bpms = band_bpms[np.argsort(band_ac)[::-1][:5]]
 print(f"top tempogram BPMs: {[round(float(b), 2) for b in top_bpms]}")
 
-# Warn when beat_track tempo is ~2× a strong tempogram peak — a common
-# failure mode on half-time R&B, hip-hop, and ballads where the hi-hat
-# is louder than the kick.
+
+def ac_strength(target_bpm: float) -> float:
+    """Autocorrelation strength at the tempogram bin nearest to target_bpm."""
+    return float(band_ac[int(np.argmin(np.abs(band_bpms - target_bpm)))])
+
+
+# Warn when beat_track locked onto 2× the real pulse — the common failure mode
+# on half-time R&B, hip-hop, and ballads where the hi-hat is louder than the kick.
+#
+# A peak near tempo/2 is NOT on its own evidence of that. The autocorrelation of
+# any periodic pulse train has peaks at 2× and 3× the beat period, so that peak
+# is present by construction even when beat_track is exactly right — on synthetic
+# click tracks at 70-200 BPM it fired on 21 of 24 correct detections. Two further
+# conditions are what carry the actual signal:
+#   1. the detected tempo is too fast to plausibly be the notated pulse, and
+#   2. the half-tempo peak is genuinely STRONGER than the peak at the tempo.
+# Both matter: (2) alone still misfires because the BPM grid here is 60*sr/(hop*lag),
+# which is ~14 BPM coarse near 136 but ~3.6 BPM near 68, so the tempo-side peak can
+# fall between bins and read low purely from quantisation.
+IMPLAUSIBLY_FAST_BPM = 150.0
+
 half_tempo = tempo / 2.0
 half_time_suspected = False
-for tb in top_bpms:
-    if abs(tb - half_tempo) / max(half_tempo, 1e-6) < 0.05:  # within 5%
-        half_time_suspected = True
-        print(
-            f"\nWARNING: beat_track ({tempo:.1f} BPM) ≈ 2× tempogram peak "
-            f"({tb:.1f} BPM).\n"
-            f"  Song may have a half-time feel; {tb:.2f} BPM may be the true pulse.\n"
-            f"  If so: python3 analyze_v3.py --audio <file> --bpm {tb:.2f}"
-        )
-        break
+if tempo >= IMPLAUSIBLY_FAST_BPM:
+    for tb in top_bpms:
+        if abs(tb - half_tempo) / max(half_tempo, 1e-6) < 0.05:  # within 5%
+            half_strength, tempo_strength = ac_strength(tb), ac_strength(tempo)
+            if half_strength > tempo_strength:
+                half_time_suspected = True
+                print(
+                    f"\nWARNING: beat_track ({tempo:.1f} BPM) ≈ 2× tempogram peak "
+                    f"({tb:.1f} BPM), and that peak is the stronger of the two "
+                    f"({half_strength:.3f} vs {tempo_strength:.3f}).\n"
+                    f"  Song may have a half-time feel; {tb:.2f} BPM may be the true pulse.\n"
+                    f"  If so: python3 analyze_v3.py --audio <file> --bpm {tb:.2f}"
+                )
+            break
 
 # ------------------------- 3. Key / mode -------------------------------
 banner("KEY / MODE")
@@ -177,7 +220,7 @@ tpl_names = [n for n, _ in templates]
 tpl_mat = np.stack([t for _, t in templates])  # (N_templates, 12)
 
 # Beat-synchronous chroma (median pooled), gives stable per-beat estimates.
-chroma_sync = librosa.util.sync(chroma_cqt, beats, aggregate=np.median)
+chroma_sync = librosa.util.sync(chroma_cqt, beat_frames_feat, aggregate=np.median)
 chroma_sync_n = chroma_sync / (np.linalg.norm(chroma_sync, axis=0, keepdims=True) + 1e-9)
 scores = tpl_mat @ chroma_sync_n  # (N_templates, N_beats)
 best_idx = scores.argmax(axis=0)
@@ -186,11 +229,10 @@ beat_chords = [tpl_names[i] for i in best_idx]
 # Collapse repeats into chord segments (merge consecutive identical chords).
 segments = []
 for i, c in enumerate(beat_chords):
-    t0 = beat_times[i] if i < len(beat_times) else duration
+    t0, t_end = float(seg_bounds[i]), float(seg_bounds[i + 1])
     if segments and segments[-1][0] == c:
-        segments[-1] = (c, segments[-1][1], t0)
+        segments[-1] = (c, segments[-1][1], t_end)
     else:
-        t_end = beat_times[i + 1] if i + 1 < len(beat_times) else duration
         segments.append((c, t0, t_end))
 
 # Print first 60 segments.
@@ -214,7 +256,7 @@ for c, t in top_chords:
 banner("STRUCTURE (self-similarity segmentation)")
 
 mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop)
-mfcc_sync = librosa.util.sync(mfcc, beats, aggregate=np.mean)
+mfcc_sync = librosa.util.sync(mfcc, beat_frames_feat, aggregate=np.mean)
 # Normalize and build recurrence matrix; then agglomerative segmentation.
 R = librosa.segment.recurrence_matrix(
     mfcc_sync, mode="affinity", sym=True, width=3
@@ -222,7 +264,11 @@ R = librosa.segment.recurrence_matrix(
 try:
     boundaries_beats = librosa.segment.agglomerative(mfcc_sync, k=6)
     boundary_beat_idx = boundaries_beats
-    boundary_times = [float(beat_times[i]) for i in boundary_beat_idx if i < len(beat_times)]
+    # agglomerative() returns column indices into mfcc_sync, so a boundary at
+    # column i starts at seg_bounds[i] — same interior-boundary convention.
+    boundary_times = [
+        float(seg_bounds[i]) for i in boundary_beat_idx if i < len(seg_bounds)
+    ]
     if not boundary_times or boundary_times[0] > 0.5:
         boundary_times = [0.0] + boundary_times
     if boundary_times[-1] < duration - 0.5:

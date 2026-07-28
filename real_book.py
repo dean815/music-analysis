@@ -38,14 +38,19 @@ bpm       = float(summary.get("tempo_bpm", 120))
 top_bpms  = summary.get("tempogram_top_bpms", [])
 half_time = summary.get("half_time_suspected", False)
 
-true_bpm = bpm
-if _args.bpm:
-    true_bpm = _args.bpm
-elif half_time and top_bpms:
+# Half-time detection is a heuristic and it gets this wrong: a genuine 135 BPM
+# piece with strong energy on the half-note will show a tempogram peak near 68,
+# trip the check, and end up stamped at half its real tempo. Silently halving a
+# correct reading is worse than leaving an ambiguous one alone, so the suspected
+# half-time value is only ever *suggested* here — applying it requires --bpm.
+true_bpm = _args.bpm if _args.bpm else bpm
+
+half_time_suggestion = None
+if half_time and top_bpms and not _args.bpm:
     half = bpm / 2.0
     for tb in top_bpms:
         if abs(tb - half) / max(half, 1e-6) < 0.06:
-            true_bpm = tb
+            half_time_suggestion = tb
             break
 
 cands     = summary.get("key_candidates") or []
@@ -209,8 +214,15 @@ lines += [
     f"  ({artist})"      if artist else "",
     f"  Key: {key_root} {key_mode}   ♩= {true_bpm:.0f}   4/4",
 ]
-if half_time and not _args.bpm:
-    lines.append(f"  [beat_track detected {bpm:.0f} BPM; corrected to {true_bpm:.0f}]")
+if half_time_suggestion is not None:
+    lines.append(
+        f"  [half-time feel suspected: {half_time_suggestion:.0f} BPM may be the true"
+        f" pulse.  Chart is at the detected {bpm:.0f}.]"
+    )
+    lines.append(
+        f"  [to redraw at that pulse: real_book.py --out {OUT}"
+        f" --bpm {half_time_suggestion:.2f}]"
+    )
 lines += [f"  {'=' * 52}", ""]
 
 # ── INTRO ──────────────────────────────────────────────────────────────────────
