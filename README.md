@@ -43,7 +43,8 @@ any script with `--help` to see its specific flags.
 | `xml_guitars.py` | `--guitars-xml` | Pitch histograms per section for guitar/lead parts |
 | `generate_previews.py` | `--previews` (out) | Synthesizes audio + MIDI of hypothetical chord progressions |
 | `splice_transitions.py` | `--audio`, `--previews` | Crossfades synth previews into the start of your bounce for transition auditioning |
-| `real_book.py` | `--out` | Renders a Real Book-style ASCII lead sheet from `analyze_v3.py`'s chord chart, with loop detection and section labels |
+| `real_book.py` | `--out` | Renders a Real Book-style ASCII lead sheet from `analyze_v3.py`'s chord chart, with loop detection and section labels. Override the detected structure with `--intro-end`, `--outro-start`, `--loop-len`, or the tempo with `--bpm` |
+| `lead_sheet.py` | — | Shared module behind `real_book.py`: turns the chord chart into structured lead-sheet data (bars, sections, loop, departures), separately from rendering it. Import this rather than shelling out if you want the chart as data |
 | `paths.py` | — | Shared config helper (env vars + argparse) used by all scripts |
 | `modes.py` | — | Shared modal-theory module: resolves a mode name into its diatonic pitch classes and tests a melody against its closest sibling mode. Used by `analyze_v3.py` and `melody.py` |
 | `modal_prior.py` | — | **Work-in-progress.** Scaffold for a modal-diatonic prior to bias chord detection toward harmonically plausible chords. The function body is intentionally unimplemented; see the docstring for the policy choices to fill in. |
