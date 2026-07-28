@@ -80,6 +80,13 @@ beat_frames_feat = np.unique(np.clip(beat_frames_feat, 0, None))
 # merge two beats that land in the same 46 ms feature frame.
 beat_times_feat = librosa.frames_to_time(beat_frames_feat, sr=sr, hop_length=hop)
 
+# librosa.util.sync treats its index array as INTERIOR boundaries: it prepends 0
+# and appends n_frames, so it returns len(idx)+1 columns, not len(idx). Column j
+# therefore spans [seg_bounds[j], seg_bounds[j+1]) in seconds — labelling column j
+# with beat_times_feat[j] would name its END, shifting every chord one beat late
+# and leaving the audio before the first beat unlabelled entirely.
+seg_bounds = np.concatenate(([0.0], beat_times_feat, [duration]))
+
 print(f"tempo (BPM) : {tempo:.2f}")
 print(f"# beats     : {len(beat_times)}")
 if len(beat_times) > 1:
@@ -199,11 +206,10 @@ beat_chords = [tpl_names[i] for i in best_idx]
 # Collapse repeats into chord segments (merge consecutive identical chords).
 segments = []
 for i, c in enumerate(beat_chords):
-    t0 = beat_times_feat[i] if i < len(beat_times_feat) else duration
+    t0, t_end = float(seg_bounds[i]), float(seg_bounds[i + 1])
     if segments and segments[-1][0] == c:
-        segments[-1] = (c, segments[-1][1], t0)
+        segments[-1] = (c, segments[-1][1], t_end)
     else:
-        t_end = beat_times_feat[i + 1] if i + 1 < len(beat_times_feat) else duration
         segments.append((c, t0, t_end))
 
 # Print first 60 segments.
@@ -235,8 +241,10 @@ R = librosa.segment.recurrence_matrix(
 try:
     boundaries_beats = librosa.segment.agglomerative(mfcc_sync, k=6)
     boundary_beat_idx = boundaries_beats
+    # agglomerative() returns column indices into mfcc_sync, so a boundary at
+    # column i starts at seg_bounds[i] — same interior-boundary convention.
     boundary_times = [
-        float(beat_times_feat[i]) for i in boundary_beat_idx if i < len(beat_times_feat)
+        float(seg_bounds[i]) for i in boundary_beat_idx if i < len(seg_bounds)
     ]
     if not boundary_times or boundary_times[0] > 0.5:
         boundary_times = [0.0] + boundary_times
