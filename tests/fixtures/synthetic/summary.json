@@ -1,0 +1,35 @@
+{
+  "file": "synthetic.wav",
+  "duration_sec": 42.0,
+  "sample_rate": 44100,
+  "tempo_bpm": 120.0,
+  "tempogram_top_bpms": [
+    120.0,
+    60.0,
+    40.0
+  ],
+  "half_time_suspected": false,
+  "key_candidates": [
+    {
+      "root": "C",
+      "mode": "major",
+      "score": 0.91
+    },
+    {
+      "root": "A",
+      "mode": "minor",
+      "score": 0.88
+    },
+    {
+      "root": "C",
+      "mode": "lydian",
+      "score": 0.71
+    }
+  ],
+  "section_boundaries_sec": [
+    0.0,
+    2.0,
+    36.0,
+    42.0
+  ]
+}

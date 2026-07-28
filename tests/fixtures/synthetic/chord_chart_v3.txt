@@ -1,0 +1,48 @@
+# Chord chart at 120.00 BPM, half-bar resolution
+# Key: C major
+# Beat 1 phase-aligned at t=0.000s
+
+
+[Section 1]  (0.0-42.0s)
+     0.00s  |  C
+     1.00s  |  C
+     2.00s  |  Am
+     3.00s  |  Am
+     4.00s  |  F
+     5.00s  |  F
+     6.00s  |  C
+     7.00s  |  C
+     8.00s  |  G
+     9.00s  |  G
+    10.00s  |  Am
+    11.00s  |  Am
+    12.00s  |  F
+    13.00s  |  F
+    14.00s  |  C
+    15.00s  |  C
+    16.00s  |  G
+    17.00s  |  G
+    18.00s  |  Am
+    19.00s  |  Am
+    20.00s  |  F
+    21.00s  |  F
+    22.00s  |  C
+    23.00s  |  C
+    24.00s  |  G
+    25.00s  |  G
+    26.00s  |  Am
+    27.00s  |  Am
+    28.00s  |  F
+    29.00s  |  F
+    30.00s  |  C
+    31.00s  |  C
+    32.00s  |  G
+    33.00s  |  G
+    34.00s  |  D#m7
+    35.00s  |  D#m7
+    36.00s  |  Em
+    37.00s  |  Em
+    38.00s  |  Em
+    39.00s  |  Em
+    40.00s  |  Em
+    41.00s  |  Em
