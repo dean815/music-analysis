@@ -99,24 +99,47 @@ tempogram = librosa.feature.tempogram(onset_envelope=oenv, sr=sr, hop_length=hop
 ac_global = np.mean(tempogram, axis=1)
 bpms = librosa.tempo_frequencies(len(ac_global), hop_length=hop, sr=sr)
 mask = (bpms >= 40) & (bpms <= 220)
-top_bpms = bpms[mask][np.argsort(ac_global[mask])[::-1][:5]]
+band_bpms, band_ac = bpms[mask], ac_global[mask]
+top_bpms = band_bpms[np.argsort(band_ac)[::-1][:5]]
 print(f"top tempogram BPMs: {[round(float(b), 2) for b in top_bpms]}")
 
-# Warn when beat_track tempo is ~2× a strong tempogram peak — a common
-# failure mode on half-time R&B, hip-hop, and ballads where the hi-hat
-# is louder than the kick.
+
+def ac_strength(target_bpm: float) -> float:
+    """Autocorrelation strength at the tempogram bin nearest to target_bpm."""
+    return float(band_ac[int(np.argmin(np.abs(band_bpms - target_bpm)))])
+
+
+# Warn when beat_track locked onto 2× the real pulse — the common failure mode
+# on half-time R&B, hip-hop, and ballads where the hi-hat is louder than the kick.
+#
+# A peak near tempo/2 is NOT on its own evidence of that. The autocorrelation of
+# any periodic pulse train has peaks at 2× and 3× the beat period, so that peak
+# is present by construction even when beat_track is exactly right — on synthetic
+# click tracks at 70-200 BPM it fired on 21 of 24 correct detections. Two further
+# conditions are what carry the actual signal:
+#   1. the detected tempo is too fast to plausibly be the notated pulse, and
+#   2. the half-tempo peak is genuinely STRONGER than the peak at the tempo.
+# Both matter: (2) alone still misfires because the BPM grid here is 60*sr/(hop*lag),
+# which is ~14 BPM coarse near 136 but ~3.6 BPM near 68, so the tempo-side peak can
+# fall between bins and read low purely from quantisation.
+IMPLAUSIBLY_FAST_BPM = 150.0
+
 half_tempo = tempo / 2.0
 half_time_suspected = False
-for tb in top_bpms:
-    if abs(tb - half_tempo) / max(half_tempo, 1e-6) < 0.05:  # within 5%
-        half_time_suspected = True
-        print(
-            f"\nWARNING: beat_track ({tempo:.1f} BPM) ≈ 2× tempogram peak "
-            f"({tb:.1f} BPM).\n"
-            f"  Song may have a half-time feel; {tb:.2f} BPM may be the true pulse.\n"
-            f"  If so: python3 analyze_v3.py --audio <file> --bpm {tb:.2f}"
-        )
-        break
+if tempo >= IMPLAUSIBLY_FAST_BPM:
+    for tb in top_bpms:
+        if abs(tb - half_tempo) / max(half_tempo, 1e-6) < 0.05:  # within 5%
+            half_strength, tempo_strength = ac_strength(tb), ac_strength(tempo)
+            if half_strength > tempo_strength:
+                half_time_suspected = True
+                print(
+                    f"\nWARNING: beat_track ({tempo:.1f} BPM) ≈ 2× tempogram peak "
+                    f"({tb:.1f} BPM), and that peak is the stronger of the two "
+                    f"({half_strength:.3f} vs {tempo_strength:.3f}).\n"
+                    f"  Song may have a half-time feel; {tb:.2f} BPM may be the true pulse.\n"
+                    f"  If so: python3 analyze_v3.py --audio <file> --bpm {tb:.2f}"
+                )
+            break
 
 # ------------------------- 3. Key / mode -------------------------------
 banner("KEY / MODE")
