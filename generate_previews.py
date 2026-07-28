@@ -145,7 +145,15 @@ def render_progression(progression: list[tuple[str, float]],
                         amp_curve: list[float] | None = None) -> np.ndarray:
     """Render a list of (chord_name, bar_count) pairs.
 
-    Crossfades between chords for smoothness (last 100ms of chord A blends with first 100ms of chord B).
+    Every chord starts exactly on its bar line and the result is exactly
+    sum(bar_count) bars long, so a 16-bar progression really is 28.44s and
+    still lines up with project bars 1-16.
+
+    Crossfades between chords for smoothness: each chord rings on for 120ms
+    past its bar line, blending into the next chord's opening. That tail is an
+    *overlap*, not a splice — it must not consume timeline, or the shortfall
+    accumulates and drags every later chord off the grid.
+
     amp_curve: per-chord amplitude scale (for build dynamics). Defaults to 1.0 each.
     """
     if amp_curve is None:
@@ -153,30 +161,33 @@ def render_progression(progression: list[tuple[str, float]],
     crossfade_s = 0.12
     crossfade_samples = int(SR * crossfade_s)
 
-    rendered = []
-    for (name, bars), amp in zip(progression, amp_curve):
-        dur = bars * BAR_S
-        chord = synth_chord(CHORDS[name], dur, amp_scale=amp)
-        rendered.append(chord)
+    # Bar-line offsets, each measured from the start of the progression so that
+    # per-chord rounding can't accumulate into drift.
+    starts: list[int] = []
+    elapsed_bars = 0.0
+    for _, bars in progression:
+        starts.append(int(round(elapsed_bars * BAR_S * SR)))
+        elapsed_bars += bars
+    total_len = int(round(elapsed_bars * BAR_S * SR))
 
-    # Concatenate with crossfades.
-    total_len = sum(len(c) for c in rendered) - crossfade_samples * (len(rendered) - 1)
     out = np.zeros(total_len)
-    pos = 0
-    for i, c in enumerate(rendered):
-        if i == 0:
-            out[pos:pos+len(c)] += c
-            pos += len(c) - crossfade_samples
-        else:
-            # Crossfade
-            xf = np.linspace(0, 1, crossfade_samples)
-            out[pos:pos+crossfade_samples] *= (1 - xf)
-            out[pos:pos+crossfade_samples] += c[:crossfade_samples] * xf
-            out[pos+crossfade_samples:pos+len(c)] += c[crossfade_samples:]
-            pos += len(c) - crossfade_samples
+    fade_in = np.linspace(0, 1, crossfade_samples)
+    last = len(progression) - 1
+    for i, ((name, _), amp) in enumerate(zip(progression, amp_curve)):
+        start = starts[i]
+        end = starts[i + 1] if i < last else total_len
+        # Every chord but the last renders a tail that overlaps its successor.
+        tail = crossfade_samples if i < last else 0
+        chord = synth_chord(CHORDS[name], (end - start + tail) / SR, amp_scale=amp)
+        if i > 0:
+            chord[:crossfade_samples] *= fade_in       # fade in across the bar line
+        if tail:
+            chord[-tail:] *= fade_in[::-1]             # fade out across the tail
+        seg = out[start:start + len(chord)]
+        seg += chord[:len(seg)]
 
     # Soft-clip to prevent peaks > 1.0
-    peak = np.max(np.abs(out))
+    peak = np.max(np.abs(out), initial=0.0)
     if peak > 0.9:
         out *= 0.9 / peak
     return out
