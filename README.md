@@ -30,10 +30,29 @@ You can also override env vars per-script with CLI flags — every script suppor
 `--audio`, `--xml`, `--guitars-xml`, `--out`, or `--previews` as appropriate. Run
 any script with `--help` to see its specific flags.
 
+## Try it without your own audio
+
+Every audio script needs a `--audio` bounce, which normally means your own mix.
+To try the pipeline without one, generate a public-domain demo bounce first —
+the ground bass of Pachelbel's *Canon in D* (c. 1680), rendered by the repo's
+own synth, so nothing needs downloading:
+
+```bash
+python3 demo_bounce.py                                   # -> out/demo_bounce.wav
+python3 analyze.py    --audio out/demo_bounce.wav --out out/demo
+python3 analyze_v3.py --audio out/demo_bounce.wav --out out/demo
+python3 real_book.py  --out out/demo
+```
+
+That should report ~136 BPM, pick **D major** as the top key candidate, and
+render a lead sheet whose main loop is the ground bass — a quick end-to-end
+check that your install works and that the analysis is behaving.
+
 ## What each script does
 
 | Script | Inputs | Purpose |
 |---|---|---|
+| `demo_bounce.py` | `--out` | Renders a public-domain demo bounce (Pachelbel's *Canon in D* ground bass) so the audio scripts are runnable without private audio. Start here if you just want to see the pipeline work |
 | `analyze.py` | `--audio` | First-pass audio analysis: tempo, key (Krumhansl), chromagram, structural segmentation |
 | `analyze_v2.py` | `--audio` | Refined audio: bar-level chord smoothing, per-section key detection |
 | `analyze_v3.py` | `--audio` | Fine-grained chord track with Viterbi smoothing, Dorian-vs-Aeolian diagnostic |
