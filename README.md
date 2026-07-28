@@ -45,6 +45,7 @@ any script with `--help` to see its specific flags.
 | `splice_transitions.py` | `--audio`, `--previews` | Crossfades synth previews into the start of your bounce for transition auditioning |
 | `real_book.py` | `--out` | Renders a Real Book-style ASCII lead sheet from `analyze_v3.py`'s chord chart, with loop detection and section labels |
 | `paths.py` | — | Shared config helper (env vars + argparse) used by all scripts |
+| `modes.py` | — | Shared modal-theory module: resolves a mode name into its diatonic pitch classes and tests a melody against its closest sibling mode. Used by `analyze_v3.py` and `melody.py` |
 | `modal_prior.py` | — | **Work-in-progress.** Scaffold for a modal-diatonic prior to bias chord detection toward harmonically plausible chords. The function body is intentionally unimplemented; see the docstring for the policy choices to fill in. |
 
 ## Output locations
