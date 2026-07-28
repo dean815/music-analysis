@@ -67,6 +67,19 @@ banner("TEMPO + BEATS")
 tempo_arr, beats = librosa.beat.beat_track(y=y, sr=sr, units="frames")
 tempo = float(np.atleast_1d(tempo_arr)[0])
 beat_times = librosa.frames_to_time(beats, sr=sr)
+
+# beat_track runs on librosa's default 512-sample hop, but the chroma and MFCC
+# features below are computed at hop=2048. Beat frame indices are therefore on a
+# 4x finer grid than those arrays and cannot be used as column indices directly —
+# doing so pushes every index past the end of the array, and librosa.util.sync
+# silently clamps them all into a single slice. Re-grid via seconds instead.
+beat_frames_feat = librosa.time_to_frames(beat_times, sr=sr, hop_length=hop)
+beat_frames_feat = np.unique(np.clip(beat_frames_feat, 0, None))
+# Times matching the re-gridded indices. Columns of anything sync'd against
+# beat_frames_feat line up with these, not with beat_times, since np.unique may
+# merge two beats that land in the same 46 ms feature frame.
+beat_times_feat = librosa.frames_to_time(beat_frames_feat, sr=sr, hop_length=hop)
+
 print(f"tempo (BPM) : {tempo:.2f}")
 print(f"# beats     : {len(beat_times)}")
 if len(beat_times) > 1:
@@ -177,7 +190,7 @@ tpl_names = [n for n, _ in templates]
 tpl_mat = np.stack([t for _, t in templates])  # (N_templates, 12)
 
 # Beat-synchronous chroma (median pooled), gives stable per-beat estimates.
-chroma_sync = librosa.util.sync(chroma_cqt, beats, aggregate=np.median)
+chroma_sync = librosa.util.sync(chroma_cqt, beat_frames_feat, aggregate=np.median)
 chroma_sync_n = chroma_sync / (np.linalg.norm(chroma_sync, axis=0, keepdims=True) + 1e-9)
 scores = tpl_mat @ chroma_sync_n  # (N_templates, N_beats)
 best_idx = scores.argmax(axis=0)
@@ -186,11 +199,11 @@ beat_chords = [tpl_names[i] for i in best_idx]
 # Collapse repeats into chord segments (merge consecutive identical chords).
 segments = []
 for i, c in enumerate(beat_chords):
-    t0 = beat_times[i] if i < len(beat_times) else duration
+    t0 = beat_times_feat[i] if i < len(beat_times_feat) else duration
     if segments and segments[-1][0] == c:
         segments[-1] = (c, segments[-1][1], t0)
     else:
-        t_end = beat_times[i + 1] if i + 1 < len(beat_times) else duration
+        t_end = beat_times_feat[i + 1] if i + 1 < len(beat_times_feat) else duration
         segments.append((c, t0, t_end))
 
 # Print first 60 segments.
@@ -214,7 +227,7 @@ for c, t in top_chords:
 banner("STRUCTURE (self-similarity segmentation)")
 
 mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop)
-mfcc_sync = librosa.util.sync(mfcc, beats, aggregate=np.mean)
+mfcc_sync = librosa.util.sync(mfcc, beat_frames_feat, aggregate=np.mean)
 # Normalize and build recurrence matrix; then agglomerative segmentation.
 R = librosa.segment.recurrence_matrix(
     mfcc_sync, mode="affinity", sym=True, width=3
@@ -222,7 +235,9 @@ R = librosa.segment.recurrence_matrix(
 try:
     boundaries_beats = librosa.segment.agglomerative(mfcc_sync, k=6)
     boundary_beat_idx = boundaries_beats
-    boundary_times = [float(beat_times[i]) for i in boundary_beat_idx if i < len(beat_times)]
+    boundary_times = [
+        float(beat_times_feat[i]) for i in boundary_beat_idx if i < len(beat_times_feat)
+    ]
     if not boundary_times or boundary_times[0] > 0.5:
         boundary_times = [0.0] + boundary_times
     if boundary_times[-1] < duration - 0.5:
