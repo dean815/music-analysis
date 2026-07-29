@@ -1,0 +1,4 @@
+# Optional — only needed for the lead sheet GUI (gui/app.py).
+# The analysis scripts do not import these; keep requirements.txt lean.
+fastapi>=0.115
+uvicorn>=0.30

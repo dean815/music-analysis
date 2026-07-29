@@ -1,0 +1,453 @@
+/* Lead sheet.
+ *
+ * The reference is a Real Book page: cream stock, engraved headings, chords in
+ * a face you can read across a music stand. The screen layout puts corrections
+ * on the left and the chart on the right; print drops the corrections entirely,
+ * because what gets printed is the chart the musician just agreed with.
+ */
+
+:root {
+  --paper: #faf6ec;
+  --ink: #1c1a17;
+  --ink-soft: #6b6355;
+  --rule: #d8cfba;
+  --accent: #8a5a2b;
+  --flag: #a8442a;
+  --panel: #f3ecdd;
+  --radius: 3px;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: "SF Mono", "JetBrains Mono", "IBM Plex Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.5;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.topbar__title {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.topbar__sub {
+  margin: 0;
+  flex: 1;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
+.topbar__picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+select, input[type="text"], input[type="number"] {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.3rem 0.45rem;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+/* ── Banners ───────────────────────────────────────────────────────────────── */
+
+.banner, .error {
+  margin: 0;
+  padding: 0.7rem 1.75rem;
+  font-size: 0.9rem;
+}
+
+.banner {
+  background: var(--panel);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-soft);
+}
+
+.error {
+  background: #f7e4de;
+  border-bottom: 1px solid #e0bdb0;
+  color: var(--flag);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: 2rem;
+  padding: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .layout { grid-template-columns: 1fr; }
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+
+.controls {
+  position: sticky;
+  top: 1.75rem;
+  padding: 1.1rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.controls__title {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+
+.control { margin-bottom: 1.1rem; }
+
+.control__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.control__auto {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.control__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.control__row input[type="range"] { flex: 1; min-width: 0; }
+.control__row input[type="number"] { width: 6rem; }
+
+.control__value {
+  min-width: 2.5rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.control__note {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.control input[type="text"] { width: 100%; }
+
+.control--toggle { font-size: 0.9rem; }
+.control--toggle label { display: flex; align-items: center; gap: 0.45rem; }
+
+input:disabled { opacity: 0.45; }
+
+.suggestion {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.7rem;
+  background: #fff;
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.btn {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.7rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn:hover { background: var(--accent); }
+.btn--inline { margin-left: 0.5rem; }
+
+/* ── The sheet ─────────────────────────────────────────────────────────────── */
+
+.sheet {
+  padding: 2rem 2.25rem;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(28, 26, 23, 0.06);
+}
+
+.sheet__header {
+  text-align: center;
+  padding-bottom: 1.1rem;
+  margin-bottom: 1.6rem;
+  border-bottom: 2px solid var(--ink);
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 1.7rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.sheet__artist {
+  margin: 0.25rem 0 0;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.sheet__meta {
+  margin: 0.6rem 0 0;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────────── */
+
+.section { margin-bottom: 1.9rem; break-inside: avoid; }
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.section__label {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+
+.section__detail {
+  font-size: 0.78rem;
+  font-family: var(--mono);
+  color: var(--ink-soft);
+}
+
+.section__note {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.bars-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.bars {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--bars-per-line, 4), minmax(0, 1fr));
+}
+
+/* The rules belong to the cells, not the grid, so a one-bar intro draws one bar
+   rather than a full-width empty staff with a chord floating in it, and a
+   part-filled last row stops where the music does. Each cell is fully boxed and
+   the negative margins collapse the shared edges back to a single 1px line —
+   which gives every row the │ … │ closure the ASCII chart prints. */
+.bar {
+  position: relative;
+  min-height: 3.4rem;
+  padding: 1.15rem 0.6rem 0.5rem;
+  border: 1px solid var(--ink);
+  margin-left: -1px;
+  margin-top: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The repeat glyphs carry their own barline, so the cells they flank drop theirs. */
+.section--loop .bars > .bar:first-child { border-left: none; }
+.section--loop .bars > .bar:last-child { border-right: none; }
+
+.bar__num {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--rule);
+}
+
+.bar__chord {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+.bar__slash { color: var(--rule); }
+.bar--empty .chord { color: var(--rule); }
+
+.repeat {
+  display: flex;
+  align-items: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+/* ── Departures ────────────────────────────────────────────────────────────── */
+
+.departures {
+  margin-top: 2rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.departures:empty { display: none; }
+
+.departures__label {
+  margin: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+
+.departures__hint {
+  margin: 0.2rem 0 0.7rem;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+.departures__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.3rem 1rem;
+}
+
+.departure {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+
+.departure__bar { color: var(--ink-soft); }
+.departure__time { color: var(--rule); }
+.departure__chord { color: var(--ink); }
+
+/* ── ASCII pane + CLI line ─────────────────────────────────────────────────── */
+
+.ascii {
+  margin: 1.75rem 0 0;
+  padding: 1rem;
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.cli {
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cli code {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+/* ── Print ─────────────────────────────────────────────────────────────────── */
+
+@media print {
+  @page { margin: 1.6cm; }
+
+  body { background: #fff; color: #000; }
+
+  .topbar,
+  .controls,
+  .banner,
+  .error,
+  .cli,
+  .ascii { display: none !important; }
+
+  .layout {
+    display: block;
+    padding: 0;
+  }
+
+  .sheet {
+    padding: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  .section { break-inside: avoid; }
+  .section__label, .departures__label { color: #000; }
+
+  /* On screen these sit back in the pale rule colour. On paper that lands
+     near-invisible, and a departure you cannot read the timecode of is not
+     worth printing. */
+  .bar__num { color: #999; }
+  .departure__time, .bar__slash { color: #777; }
+}

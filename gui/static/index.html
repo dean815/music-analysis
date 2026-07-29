@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lead Sheet</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="topbar__title">Lead Sheet</h1>
+    <p class="topbar__sub">Correct what the analysis got wrong. The chart redraws as you go.</p>
+    <label class="topbar__picker">
+      <span>Track</span>
+      <select id="track-picker"></select>
+    </label>
+  </header>
+
+  <p class="banner" id="example-banner" hidden></p>
+  <p class="error" id="error-banner" hidden></p>
+
+  <main class="layout">
+    <aside class="controls">
+      <h2 class="controls__title">Corrections</h2>
+
+      <p class="suggestion" id="half-time" hidden></p>
+
+      <div class="control">
+        <div class="control__head">
+          <label for="c-intro-end">Intro ends at bar</label>
+          <label class="control__auto">
+            <input type="checkbox" id="auto-intro-end" checked> auto
+          </label>
+        </div>
+        <div class="control__row">
+          <input type="range" id="c-intro-end" min="1" max="64" value="1" disabled>
+          <output class="control__value" id="v-intro-end">1</output>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="control__head">
+          <label for="c-outro-start">Outro starts at bar</label>
+          <label class="control__auto">
+            <input type="checkbox" id="auto-outro-start" checked> auto
+          </label>
+        </div>
+        <div class="control__row">
+          <input type="range" id="c-outro-start" min="1" max="64" value="1" disabled>
+          <output class="control__value" id="v-outro-start">—</output>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="control__head">
+          <label for="c-loop-len">Loop length</label>
+          <label class="control__auto">
+            <input type="checkbox" id="auto-loop-len" checked> auto
+          </label>
+        </div>
+        <div class="control__row">
+          <input type="range" id="c-loop-len" min="1" max="16" value="4" disabled>
+          <output class="control__value" id="v-loop-len">—</output>
+        </div>
+      </div>
+
+      <div class="control">
+        <div class="control__head">
+          <label for="c-bpm">Tempo</label>
+          <label class="control__auto">
+            <input type="checkbox" id="auto-bpm" checked> auto
+          </label>
+        </div>
+        <div class="control__row">
+          <input type="number" id="c-bpm" min="20" max="300" step="0.25" disabled>
+          <span class="control__value">BPM</span>
+        </div>
+        <p class="control__note">Cosmetic — reaches the header only.</p>
+      </div>
+
+      <div class="control">
+        <label class="control__head" for="c-title">Title</label>
+        <input type="text" id="c-title" placeholder="from the filename">
+      </div>
+
+      <div class="control">
+        <label class="control__head" for="c-artist">Artist</label>
+        <input type="text" id="c-artist" placeholder="—">
+      </div>
+
+      <div class="control">
+        <label class="control__head" for="c-bars-per-line">Bars per line</label>
+        <select id="c-bars-per-line">
+          <option value="2">2</option>
+          <option value="4" selected>4</option>
+          <option value="8">8</option>
+        </select>
+      </div>
+
+      <div class="control control--toggle">
+        <label><input type="checkbox" id="c-simplify" checked> Collapse repeats into a loop</label>
+      </div>
+
+      <div class="control control--toggle">
+        <label><input type="checkbox" id="c-ascii"> Show the ASCII chart</label>
+      </div>
+    </aside>
+
+    <section class="sheet" id="sheet">
+      <div class="sheet__header" id="sheet-header"></div>
+      <div class="sheet__body" id="sheet-body"></div>
+      <div class="departures" id="departures"></div>
+      <pre class="ascii" id="ascii-pane" hidden></pre>
+      <div class="cli">
+        <code id="cli-command"></code>
+        <button type="button" id="copy-cli" class="btn">Copy</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

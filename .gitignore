@@ -16,6 +16,11 @@ env/
 out/
 previews/
 
+# The bundled example is tracked input data, but real_book.py --out examples/demo
+# writes its rendered chart back into that directory. Regenerable output, and the
+# README tells people to run exactly that command.
+examples/*/real_book.txt
+
 # Audio + MIDI files anywhere in the tree.
 # Scripts produce these from inputs you point at via env vars; they don't
 # belong in version control. Remove these lines if you decide to track demos.

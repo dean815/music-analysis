@@ -63,10 +63,42 @@ check that your install works and that the analysis is behaving.
 | `generate_previews.py` | `--previews` (out) | Synthesizes audio + MIDI of hypothetical chord progressions |
 | `splice_transitions.py` | `--audio`, `--previews` | Crossfades synth previews into the start of your bounce for transition auditioning |
 | `real_book.py` | `--out` | Renders a Real Book-style ASCII lead sheet from `analyze_v3.py`'s chord chart, with loop detection and section labels. Override the detected structure with `--intro-end`, `--outro-start`, `--loop-len`, or the tempo with `--bpm` |
+| `gui/app.py` | `--out-root` | Local web GUI over the lead sheet: pick an analysed track, override the detected intro, outro, loop length, tempo and titles, and watch the chart redraw. Needs `requirements-gui.txt` |
 | `lead_sheet.py` | — | Shared module behind `real_book.py`: turns the chord chart into structured lead-sheet data (bars, sections, loop, departures), separately from rendering it. Import this rather than shelling out if you want the chart as data |
+| `gui/serialize.py` | — | Shared module behind `gui/app.py`: turns a `LeadSheet` into the JSON the page draws, and into the `real_book.py` command that reproduces it |
 | `paths.py` | — | Shared config helper (env vars + argparse) used by all scripts |
 | `modes.py` | — | Shared modal-theory module: resolves a mode name into its diatonic pitch classes and tests a melody against its closest sibling mode. Used by `analyze_v3.py` and `melody.py` |
 | `modal_prior.py` | — | **Work-in-progress.** Scaffold for a modal-diatonic prior to bias chord detection toward harmonically plausible chords. The function body is intentionally unimplemented; see the docstring for the policy choices to fill in. |
+
+## The lead sheet GUI
+
+The structural analysis is a set of heuristics, and on real music they are
+visibly wrong — the intro detector is "first bar unlike the dominant chord,
+minus one", which calls a one-bar intro on a track that has eight. The GUI
+exists so disagreeing with it is fast:
+
+```bash
+python3 -m pip install -r requirements-gui.txt
+python3 gui/app.py
+```
+
+Then open http://127.0.0.1:8000. Pick a track, and every structural axis has an
+**auto** toggle: leave it on and you see what the analysis decided, turn it off
+and you see what you decided. The chart redraws on each change — no re-analysis
+runs, because `lead_sheet.build()` only reads two text files.
+
+`gui/app.py --out-root <dir>` points it at a different directory of analysed
+tracks. With no `--out-root` and nothing analysed in `out/` yet, it serves the
+bundled example in `examples/` so there is something to look at on a fresh
+clone.
+
+Nothing is written back. When a correction is right, the page shows the
+`real_book.py` command that reproduces it, so it survives in your shell history
+rather than in a state file this repo would then have to keep in sync.
+
+The web dependencies are deliberately *not* in `requirements.txt` — the analysis
+scripts never import them, and an install that only wants tempo and chords
+should not pull an ASGI server.
 
 ## Output locations
 

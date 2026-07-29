@@ -118,11 +118,23 @@ Frontend tests are out of scope; keep logic in the server so there is little to 
 - Hosting. The seam supports it; the increment is a container plus a static build.
 - Multi-track comparison, export to MusicXML/MIDI, audio playback.
 
-## Open questions
+## Open questions — resolved 2026-07-28
 
-1. **Web dependencies.** `fastapi` and `uvicorn` in a repo that is currently pure analysis. Raised with Dean, not explicitly resolved. Alternative: a `--html` flag on `real_book.py` writing a self-contained static file — no server, no deps, but no live controls. Confirm before adding to `requirements.txt`; consider `requirements-gui.txt` to keep the analysis install lean.
-2. **Which track ships as the demo.** The bundled example must be Dean's own music. `out/kitchen` is a commercial recording and cannot be used. The D Lydian bounce works and has MusicXML ground truth alongside it.
-3. **Does the GUI write anything?** Corrections are currently ephemeral. Persisting them (an `overrides.json` per track, re-read by the CLI) would make the CLI and GUI agree, but adds a state contract not yet designed.
+1. **Web dependencies.** Resolved: `requirements-gui.txt`. `fastapi` and
+   `uvicorn` stay out of `requirements.txt`, CI installs all three files, and
+   the GUI tests `importorskip("fastapi")` so a lean install reports skips
+   rather than collection errors. The `--html` static-export alternative was
+   rejected: it removes the live controls, which are the product.
+2. **Which track ships as the demo.** Resolved: the D Lydian bounce, as
+   `examples/demo/`. Only `summary.json` and `chord_chart_v3.txt` are tracked;
+   the `file` field is scrubbed from an absolute path to a bare title, since
+   `build()` derives the chart title from it. It lives in `examples/` rather
+   than `out/` so `analyze.py --out out/demo` cannot overwrite tracked data.
+3. **Does the GUI write anything?** Resolved: no. The server is read-only. The
+   page renders the `real_book.py` invocation that reproduces the current
+   chart, which gives durability through the CLI seam that already exists
+   without inventing a precedence contract between a state file and explicit
+   flags.
 
 ## Notes for the implementing session
 
