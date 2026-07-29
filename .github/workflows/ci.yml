@@ -21,7 +21,7 @@ jobs:
           python -m pip install -r requirements-dev.txt
 
       - name: Import-check shared modules
-        run: python -c "import paths, modes, lead_sheet, generate_previews"
+        run: python -c "import paths, modes, lead_sheet, generate_previews, analyze"
 
       - name: Unit tests
         run: python -m pytest tests/ -q
