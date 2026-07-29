@@ -27,8 +27,11 @@ if str(REPO_ROOT) not in sys.path:
 from fastapi import FastAPI, HTTPException  # noqa: E402
 from fastapi.responses import HTMLResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
+from pydantic import BaseModel  # noqa: E402
 
+import lead_sheet  # noqa: E402
 import paths  # noqa: E402
+from gui import serialize  # noqa: E402
 
 EXAMPLES_ROOT = REPO_ROOT / "examples"
 ANALYZE_HINT = "python3 analyze.py --audio <file> --out out/<name>"
@@ -105,6 +108,86 @@ def api_tracks() -> dict:
         "tracks": list_tracks(root),
         "analyze_hint": ANALYZE_HINT,
     }
+
+
+class Overrides(BaseModel):
+    """The full correction set. Every field is what the musician decided.
+
+    None means "keep the heuristic" for the structural axes — that distinction
+    is the product, so it is carried as an explicit null rather than a sentinel
+    like 0 or -1 that lead_sheet would clamp into a real value.
+    """
+
+    bpm: float | None = None
+    title: str = ""
+    artist: str = ""
+    intro_end: int | None = None
+    outro_start: int | None = None
+    loop_len: int | None = None
+    simplify: bool = True
+    bars_per_line: int = 4
+
+
+class SheetRequest(BaseModel):
+    out_dir: str
+    overrides: Overrides = Overrides()
+
+
+def _resolve_track(root: Path, name: str) -> Path:
+    """Resolve a track name under `root`, refusing anything that escapes it.
+
+    The name comes from a browser, so it is one path segment and nothing else.
+    Without this, "../.." would turn a read-only chart viewer into a file
+    browser for the whole disk.
+    """
+    if not name or name in (".", "..") or "/" in name or "\\" in name:
+        raise HTTPException(status_code=422, detail=f"invalid track name: {name!r}")
+    root = Path(root).resolve()
+    candidate = (root / name).resolve()
+    if candidate.parent != root or not candidate.is_dir():
+        raise HTTPException(
+            status_code=422, detail=f"no analysed track named {name!r} in {root}"
+        )
+    return candidate
+
+
+def _cli_out_arg(track_dir: Path) -> str:
+    """The --out value to print, repo-relative when it can be."""
+    try:
+        return str(track_dir.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(track_dir)
+
+
+@app.post("/api/sheet")
+def api_sheet(req: SheetRequest) -> dict:
+    root, _ = _active_root()
+    track_dir = _resolve_track(root, req.out_dir)
+    ov = req.overrides
+
+    # build() raises rather than exiting, precisely so this process survives a
+    # half-analysed directory. Its messages already name the command to run, so
+    # they are passed through verbatim for the page to show.
+    try:
+        sheet = lead_sheet.build(
+            track_dir,
+            bpm=ov.bpm,
+            title=ov.title,
+            artist=ov.artist,
+            intro_end=ov.intro_end,
+            outro_start=ov.outro_start,
+            loop_len=ov.loop_len,
+            simplify=ov.simplify,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    return serialize.sheet_to_dict(
+        sheet,
+        bars_per_line=max(1, ov.bars_per_line),
+        out_dir_arg=_cli_out_arg(track_dir),
+        overrides=ov.model_dump(),
+    )
 
 
 if __name__ == "__main__":

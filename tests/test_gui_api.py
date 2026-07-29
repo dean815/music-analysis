@@ -84,3 +84,124 @@ def test_explicit_out_root_does_not_silently_become_the_example(tmp_path):
         body = c.get("/api/tracks").json()
     assert body["is_example_fallback"] is False
     assert body["tracks"] == []
+
+
+# ── POST /api/sheet ───────────────────────────────────────────────────────────
+
+
+def post_sheet(client, **overrides):
+    return client.post(
+        "/api/sheet", json={"out_dir": "synthetic", "overrides": overrides}
+    )
+
+
+def test_sheet_round_trips_the_fixture(client):
+    res = post_sheet(client)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["title"] == "synthetic"
+    assert body["total_bars"] == 21
+    assert [s["kind"] for s in body["sections"]] == ["intro", "loop", "outro"]
+
+
+def test_loop_len_override_reaches_build(client):
+    body = post_sheet(client, loop_len=2).json()
+    assert body["loop"]["length"] == 2
+
+
+def test_intro_end_override_moves_the_body(client):
+    body = post_sheet(client, intro_end=4).json()
+    assert body["intro_end"] == 4
+    assert body["body_start"] == 5
+
+
+def test_outro_start_override_moves_the_body_end(client):
+    body = post_sheet(client, outro_start=15).json()
+    assert body["outro_start"] == 15
+    assert body["body_end"] == 14
+
+
+def test_title_and_artist_overrides_reach_the_header(client):
+    body = post_sheet(client, title="Given", artist="Someone").json()
+    assert body["title"] == "Given"
+    assert body["artist"] == "Someone"
+
+
+def test_bpm_override_reaches_the_header_and_the_command(client):
+    body = post_sheet(client, bpm=60.0).json()
+    assert body["bpm"] == 60.0
+    assert body["detected_bpm"] == 120.0
+    assert "--bpm 60" in body["cli_command"]
+
+
+def test_simplify_false_renders_every_bar(client):
+    body = post_sheet(client, simplify=False).json()
+    assert body["loop"] is None
+    assert [s["kind"] for s in body["sections"]] == ["intro", "body", "outro"]
+
+
+def test_out_of_range_overrides_are_clamped_not_rejected(client):
+    # lead_sheet clamps rather than validates so a slider can be dragged
+    # anywhere. That contract has to survive the HTTP layer.
+    res = post_sheet(client, intro_end=9999, outro_start=-5, loop_len=9999)
+    assert res.status_code == 200
+    body = res.json()
+    assert 1 <= body["intro_end"] <= body["total_bars"]
+
+
+def test_bars_per_line_of_zero_does_not_explode(client):
+    res = post_sheet(client, bars_per_line=0)
+    assert res.status_code == 200
+    assert res.json()["bars_per_line"] == 1
+
+
+def test_missing_track_is_a_422_not_a_500(client):
+    res = client.post("/api/sheet", json={"out_dir": "no-such-track", "overrides": {}})
+    assert res.status_code == 422
+    assert "no-such-track" in res.json()["detail"]
+
+
+def test_track_without_a_chart_names_the_command_to_run(tmp_path):
+    # Analysed by analyze.py but not analyze_v3.py. The page should be able to
+    # tell the user which step is missing instead of showing a stack trace.
+    track = tmp_path / "half-done"
+    track.mkdir()
+    (track / "summary.json").write_text('{"tempo_bpm": 120}')
+    app.state.out_root = tmp_path
+    app.state.allow_example_fallback = False
+    with TestClient(app) as c:
+        res = c.post("/api/sheet", json={"out_dir": "half-done", "overrides": {}})
+    assert res.status_code == 422
+    assert "analyze_v3.py" in res.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "name", ["../secrets", "..", ".", "", "sub/dir", "/etc", "..\\windows"]
+)
+def test_path_traversal_is_refused(client, name):
+    # out_dir arrives from a browser. A read-only chart viewer must not become
+    # a file browser for the whole disk.
+    res = client.post("/api/sheet", json={"out_dir": name, "overrides": {}})
+    assert res.status_code == 422
+
+
+def test_traversal_cannot_reach_a_real_directory_outside_the_root(client):
+    # tests/fixtures is the root, so ../fixtures/synthetic resolves to a dir
+    # that genuinely exists — rejection must come from the guard, not from the
+    # target being absent.
+    res = client.post(
+        "/api/sheet", json={"out_dir": "../fixtures/synthetic", "overrides": {}}
+    )
+    assert res.status_code == 422
+
+
+def test_response_carries_a_reproducing_cli_command(client):
+    body = post_sheet(client, loop_len=2, intro_end=4).json()
+    assert body["cli_command"].startswith("python3 real_book.py --out ")
+    assert "--loop-len 2" in body["cli_command"]
+    assert "--intro-end 4" in body["cli_command"]
+
+
+def test_cli_command_points_at_a_repo_relative_path(client):
+    body = post_sheet(client).json()
+    assert "--out tests/fixtures/synthetic" in body["cli_command"]
