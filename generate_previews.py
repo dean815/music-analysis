@@ -19,11 +19,6 @@ from music21 import stream, note as m21note, chord as m21chord, meter, tempo, ke
 
 import paths
 
-_parser = argparse.ArgumentParser(description=__doc__)
-paths.add_args(_parser, needs_out=False, needs_previews=True)
-_args = _parser.parse_args()
-OUT = paths.ensure_dir(_args.previews)
-
 SR = 44100
 BPM = 135.0
 BAR_S = 4 * 60.0 / BPM  # = 1.778s per bar
@@ -283,13 +278,18 @@ APPROACHES = {
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    paths.add_args(parser, needs_out=False, needs_previews=True)
+    args = parser.parse_args()
+    out_dir = paths.ensure_dir(args.previews)
+
     for slug, spec in APPROACHES.items():
         print(f"\n=== {spec['title']} ===")
         audio = render_progression(spec["progression"], spec["amp_curve"])
-        wav_path = OUT / f"{slug}.wav"
+        wav_path = out_dir / f"{slug}.wav"
         sf.write(str(wav_path), audio, SR, subtype="PCM_24")
         # MIDI too
-        mid_path = OUT / f"{slug}.mid"
+        mid_path = out_dir / f"{slug}.mid"
         write_midi(spec["progression"], mid_path, spec["title"])
         print(f"  audio: {wav_path}  ({len(audio)/SR:.2f}s)")
         print(f"  midi : {mid_path}")

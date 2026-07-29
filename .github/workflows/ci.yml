@@ -23,7 +23,7 @@ jobs:
 
       - name: Import-check shared modules
         run: |
-          python -c "import paths, modes, lead_sheet"
+          python -c "import paths, modes, lead_sheet, generate_previews, analyze"
           python -c "import gui.app"
 
       - name: Unit tests
@@ -35,7 +35,7 @@ jobs:
           for f in analyze.py analyze_v2.py analyze_v3.py melody.py \
                    xml_analyze.py xml_aligned.py xml_guitars.py \
                    generate_previews.py splice_transitions.py real_book.py \
-                   modal_prior.py gui/app.py; do
+                   modal_prior.py demo_bounce.py gui/app.py; do
             echo "=== $f ==="
             python3 "$f" --help
           done
