@@ -91,6 +91,30 @@ def ac_strength(band_bpms: np.ndarray, band_ac: np.ndarray, target_bpm: float) -
     return float(band_ac[int(np.argmin(np.abs(band_bpms - target_bpm)))])
 
 
+def local_maxima(values: np.ndarray) -> np.ndarray:
+    """Indices of bins at least as tall as their neighbours.
+
+    Strictly greater on the left and greater-or-equal on the right, so a plateau
+    contributes exactly one index rather than all of them. A bin at either end of
+    the array counts if it beats its single neighbour — a peak sitting on the edge
+    of the BPM band is still the best evidence in the band, and dropping it would
+    silently narrow the range being searched.
+
+    The global maximum always satisfies both tests, so the result is never empty
+    for a non-empty input.
+    """
+    n = len(values)
+    if n < 2:
+        return np.arange(n)
+    rises = np.empty(n, dtype=bool)
+    falls = np.empty(n, dtype=bool)
+    rises[0] = True
+    rises[1:] = values[1:] > values[:-1]
+    falls[-1] = True
+    falls[:-1] = values[:-1] >= values[1:]
+    return np.flatnonzero(rises & falls)
+
+
 def tempogram_peaks(
     y: np.ndarray,
     sr: float,
@@ -104,6 +128,17 @@ def tempogram_peaks(
     Returns (band_bpms, band_ac, top_bpms), where top_bpms is ordered by
     descending autocorrelation strength. The band arrays are what ac_strength
     indexes into, so the three travel together.
+
+    top_bpms holds the n_top strongest *peaks*, not the n_top strongest bins. The
+    difference matters because the BPM axis is 60*sr/(hop*lag): bin spacing depends
+    on the hop, and the shoulders of one tall peak can easily outrank every other
+    peak in the band. Ranking bare bins then returns the same tempo several times
+    over and pushes real candidates out of the list — at hop=256 a 135 BPM click
+    track yields just 2 distinct tempi in a top-5 of 5. Even at the hop this script
+    uses it costs a slot, reporting 44.55 and 46.14 as separate findings.
+
+    That list is not only printed: suspect_half_time scans it for a peak near
+    tempo/2, and can only find one if it is there to be found.
     """
     oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop)
     tempogram = librosa.feature.tempogram(onset_envelope=oenv, sr=sr, hop_length=hop)
@@ -111,8 +146,10 @@ def tempogram_peaks(
     bpms = librosa.tempo_frequencies(len(ac_global), hop_length=hop, sr=sr)
     mask = (bpms >= bpm_range[0]) & (bpms <= bpm_range[1])
     band_bpms, band_ac = bpms[mask], ac_global[mask]
-    top_bpms = band_bpms[np.argsort(band_ac)[::-1][:n_top]]
-    return band_bpms, band_ac, top_bpms
+
+    peaks = local_maxima(band_ac)
+    top_idx = peaks[np.argsort(band_ac[peaks])[::-1][:n_top]]
+    return band_bpms, band_ac, band_bpms[top_idx]
 
 
 class HalfTimeCheck(NamedTuple):
