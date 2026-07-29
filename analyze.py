@@ -23,6 +23,51 @@ def banner(title: str) -> None:
     print(f"\n{'=' * 60}\n{title}\n{'=' * 60}")
 
 
+def finite_or_none(x: float) -> float | None:
+    """float(x), or None if it is inf or nan.
+
+    json.dump writes bare Infinity/NaN tokens for those, which Python reads back
+    happily but which are not JSON. Consumers disagree about what to do with
+    them: JavaScript's JSON.parse raises, while jq silently converts -Infinity to
+    -1.8e308 — a plausible-looking number that is not the measurement. null is
+    the honest record of "not measurable", matching tempo_bpm's treatment of a
+    track with no detectable pulse.
+    """
+    return float(x) if np.isfinite(x) else None
+
+
+def stereo_metrics(y_stereo: np.ndarray) -> tuple[float | None, float | None]:
+    """(L/R correlation, side-to-mid dB) for an (n_samples, n_channels) array.
+
+    Higher correlation = more mono; more negative dB = narrower. Three inputs have
+    no meaningful width to report, and each returns None for the affected value
+    rather than a stand-in number, on the same reasoning as tempo_bpm: a 0.0 or a
+    -inf reads downstream as a measurement.
+
+      - a mono file has no second channel. Indexing one used to raise IndexError,
+        killing a run that every other section would have handled fine.
+      - a dual-mono file has an exactly-zero side signal, so the dB ratio is -inf.
+      - a file with a silent or constant channel gives corrcoef = nan, since
+        corrcoef divides by each channel's standard deviation.
+
+    A hard-panned file is NOT one of these: mid and side carry equal energy there,
+    so 0.0 dB is a real measurement rather than a fallback.
+    """
+    if y_stereo.shape[1] < 2:
+        return None, None
+
+    L, R = y_stereo[:, 0].astype(np.float32), y_stereo[:, 1].astype(np.float32)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        lr_corr = finite_or_none(np.corrcoef(L, R)[0, 1])
+    mid = 0.5 * (L + R)
+    side = 0.5 * (L - R)
+    mid_rms = float(np.sqrt(np.mean(mid**2)))
+    side_rms = float(np.sqrt(np.mean(side**2)))
+    with np.errstate(divide="ignore"):
+        side_to_mid_db = finite_or_none(20 * np.log10(side_rms / max(mid_rms, 1e-9)))
+    return lr_corr, side_to_mid_db
+
+
 # ------------------------- Half-time detection -------------------------
 # Warn when beat_track locked onto 2× the real pulse — the common failure mode
 # on half-time R&B, hip-hop, and ballads where the hi-hat is louder than the kick.
@@ -182,16 +227,14 @@ def main() -> None:
     y = y_stereo.mean(axis=1).astype(np.float32)
     duration = len(y) / sr
 
-    # Stereo width: corr between L and R. Higher = more mono.
-    L, R = y_stereo[:, 0].astype(np.float32), y_stereo[:, 1].astype(np.float32)
-    lr_corr = float(np.corrcoef(L, R)[0, 1])
-    mid = 0.5 * (L + R)
-    side = 0.5 * (L - R)
-    mid_rms = float(np.sqrt(np.mean(mid**2)))
-    side_rms = float(np.sqrt(np.mean(side**2)))
-    side_to_mid_db = 20 * np.log10(side_rms / max(mid_rms, 1e-9))
-    print(f"L/R corr    : {lr_corr:+.3f}   (1=mono, 0=independent, -1=antiphase)")
-    print(f"S/M ratio   : {side_to_mid_db:+.2f} dB   (more negative = narrower stereo)")
+    # Stereo width. Either value is None when the file has no measurable width —
+    # mono, dual-mono, or a silent channel. See stereo_metrics.
+    lr_corr, side_to_mid_db = stereo_metrics(y_stereo)
+
+    lr_text = f"{lr_corr:+.3f}" if lr_corr is not None else "   n/a"
+    smd_text = f"{side_to_mid_db:+.2f} dB" if side_to_mid_db is not None else "   n/a"
+    print(f"L/R corr    : {lr_text}   (1=mono, 0=independent, -1=antiphase)")
+    print(f"S/M ratio   : {smd_text}   (more negative = narrower stereo)")
 
     # Loudness curve (RMS over time, in dBFS).
     hop = 2048
@@ -417,8 +460,9 @@ def main() -> None:
         "channels": int(info.channels),
         "peak_dbfs": float(20 * np.log10(np.max(np.abs(y)))),
         "rms_dbfs": float(20 * np.log10(np.sqrt(np.mean(y**2)))),
+        # null when the file has no measurable stereo width — see the L/R block above.
         "lr_correlation": lr_corr,
-        "side_to_mid_db": float(side_to_mid_db),
+        "side_to_mid_db": side_to_mid_db,
         # null, not 0.0, when the tracker found no pulse — analyze_v3.pick_tempo
         # treats a missing tempo as "pass --bpm", which is the right prompt. A 0.0
         # would be accepted as a real tempo and silently poison everything downstream.
