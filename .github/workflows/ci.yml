@@ -18,10 +18,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -r requirements.txt
+          python -m pip install -r requirements-gui.txt
           python -m pip install -r requirements-dev.txt
 
       - name: Import-check shared modules
-        run: python -c "import paths, modes, lead_sheet"
+        run: |
+          python -c "import paths, modes, lead_sheet"
+          python -c "import gui.app"
 
       - name: Unit tests
         run: python -m pytest tests/ -q
@@ -32,7 +35,7 @@ jobs:
           for f in analyze.py analyze_v2.py analyze_v3.py melody.py \
                    xml_analyze.py xml_aligned.py xml_guitars.py \
                    generate_previews.py splice_transitions.py real_book.py \
-                   modal_prior.py; do
+                   modal_prior.py gui/app.py; do
             echo "=== $f ==="
             python3 "$f" --help
           done

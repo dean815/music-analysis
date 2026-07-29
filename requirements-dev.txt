@@ -1,2 +1,6 @@
 # Development-only dependencies (not needed to run the analysis scripts).
 pytest>=8.0
+
+# Transport behind fastapi's TestClient. Only the GUI tests use it, and they
+# skip themselves when fastapi is absent.
+httpx>=0.27
