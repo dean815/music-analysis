@@ -1,4 +1,39 @@
 <!doctype html>
-<meta charset="utf-8">
-<title>Lead Sheet</title>
-<h1>Lead Sheet</h1>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lead Sheet</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="topbar__title">Lead Sheet</h1>
+    <p class="topbar__sub">Correct what the analysis got wrong. The chart redraws as you go.</p>
+    <label class="topbar__picker">
+      <span>Track</span>
+      <select id="track-picker"></select>
+    </label>
+  </header>
+
+  <p class="banner" id="example-banner" hidden></p>
+  <p class="error" id="error-banner" hidden></p>
+
+  <main class="layout">
+    <aside class="controls" id="controls"></aside>
+
+    <section class="sheet" id="sheet">
+      <div class="sheet__header" id="sheet-header"></div>
+      <div class="sheet__body" id="sheet-body"></div>
+      <div class="departures" id="departures"></div>
+      <pre class="ascii" id="ascii-pane" hidden></pre>
+      <div class="cli">
+        <code id="cli-command"></code>
+        <button type="button" id="copy-cli" class="btn">Copy</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
