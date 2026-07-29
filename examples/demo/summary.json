@@ -8,6 +8,7 @@
   "lr_correlation": 0.8510379528689133,
   "side_to_mid_db": -10.931747446592626,
   "tempo_bpm": 135.99917763157896,
+  "beats_detected": 214,
   "tempogram_top_bpms": [
     67.99958881578948,
     44.55145474137931,
@@ -15,7 +16,7 @@
     53.8330078125,
     143.5546875
   ],
-  "half_time_suspected": true,
+  "half_time_suspected": false,
   "mean_chroma": {
     "C": 0.2903358042240143,
     "C#": 0.5863189101219177,
