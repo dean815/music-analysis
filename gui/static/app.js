@@ -182,6 +182,57 @@ function renderDepartures(data) {
   wrap.appendChild(list);
 }
 
+function syncControls(data) {
+  // Sliders are bounded by the chart that came back. lead_sheet clamps anyway,
+  // so this is about making the range mean something, not about validation.
+  $("#c-intro-end").max = data.total_bars;
+  $("#c-outro-start").max = data.total_bars;
+
+  if ($("#auto-intro-end").checked) {
+    $("#c-intro-end").value = data.intro_end;
+    $("#v-intro-end").textContent = data.intro_end;
+  } else {
+    $("#v-intro-end").textContent = $("#c-intro-end").value;
+  }
+
+  if ($("#auto-outro-start").checked) {
+    $("#c-outro-start").value = data.outro_start ?? data.total_bars;
+    $("#v-outro-start").textContent = data.outro_start ?? "none";
+  } else {
+    $("#v-outro-start").textContent = $("#c-outro-start").value;
+  }
+
+  const loopLen = data.loop ? data.loop.length : null;
+  if ($("#auto-loop-len").checked) {
+    if (loopLen) $("#c-loop-len").value = loopLen;
+    $("#v-loop-len").textContent = loopLen ?? "none";
+  } else {
+    $("#v-loop-len").textContent = $("#c-loop-len").value;
+  }
+
+  if ($("#auto-bpm").checked) $("#c-bpm").value = data.bpm.toFixed(2);
+
+  const suggestion = $("#half-time");
+  suggestion.replaceChildren();
+  suggestion.hidden = data.half_time_suggestion == null;
+  if (data.half_time_suggestion != null) {
+    const bpm = data.half_time_suggestion;
+    suggestion.appendChild(
+      el("span", "", `Half-time feel suspected — ${Math.round(bpm)} BPM may be the true pulse.`)
+    );
+    const apply = el("button", "btn btn--inline", `Use ${Math.round(bpm)}`);
+    apply.type = "button";
+    apply.addEventListener("click", () => {
+      $("#auto-bpm").checked = false;
+      $("#c-bpm").disabled = false;
+      $("#c-bpm").value = bpm.toFixed(2);
+      state.overrides.bpm = bpm;
+      refresh();
+    });
+    suggestion.appendChild(apply);
+  }
+}
+
 function render(data) {
   renderHeader(data);
 
@@ -190,6 +241,7 @@ function render(data) {
   data.sections.forEach((s) => body.appendChild(renderSection(s, data.bars_per_line)));
 
   renderDepartures(data);
+  syncControls(data);
   $("#cli-command").textContent = data.cli_command;
   $("#ascii-pane").textContent = data.ascii;
 }
@@ -218,6 +270,85 @@ $("#copy-cli").addEventListener("click", async () => {
   await navigator.clipboard.writeText($("#cli-command").textContent);
   button.textContent = "Copied";
   setTimeout(() => { button.textContent = "Copy"; }, 1200);
+});
+
+// ── Controls ─────────────────────────────────────────────────────────────────
+
+/* Each structural axis is a pair: an auto checkbox and a value.
+ *
+ * Auto sends null, which is what tells lead_sheet to keep its heuristic, and
+ * the slider then displays whatever the machine decided. Unchecking hands the
+ * axis to the musician, seeded with the machine's value so the first move is a
+ * nudge rather than a jump. That difference — machine guess versus human
+ * decision — is the whole point of the tool, so it is a visible mode, not an
+ * inferred one.
+ */
+const AXES = [
+  { key: "intro_end",   auto: "#auto-intro-end",   input: "#c-intro-end",   value: "#v-intro-end" },
+  { key: "outro_start", auto: "#auto-outro-start", input: "#c-outro-start", value: "#v-outro-start" },
+  { key: "loop_len",    auto: "#auto-loop-len",    input: "#c-loop-len",    value: "#v-loop-len" },
+];
+
+function readAxis(axis) {
+  const isAuto = $(axis.auto).checked;
+  $(axis.input).disabled = isAuto;
+  state.overrides[axis.key] = isAuto ? null : Number($(axis.input).value);
+}
+
+AXES.forEach((axis) => {
+  $(axis.auto).addEventListener("change", () => {
+    if (!$(axis.auto).checked && state.sheet) {
+      // Seed from what the machine decided, so taking over never moves the chart
+      // on its own — the first change the musician sees is one they made.
+      const seed = axis.key === "loop_len"
+        ? (state.sheet.loop ? state.sheet.loop.length : 4)
+        : state.sheet[axis.key];
+      if (seed != null) $(axis.input).value = seed;
+    }
+    readAxis(axis);
+    refresh();
+  });
+  $(axis.input).addEventListener("input", () => {
+    readAxis(axis);
+    refresh();
+  });
+});
+
+$("#auto-bpm").addEventListener("change", () => {
+  const isAuto = $("#auto-bpm").checked;
+  $("#c-bpm").disabled = isAuto;
+  if (!isAuto && state.sheet) $("#c-bpm").value = state.sheet.bpm.toFixed(2);
+  state.overrides.bpm = isAuto ? null : Number($("#c-bpm").value);
+  refresh();
+});
+
+$("#c-bpm").addEventListener("input", () => {
+  state.overrides.bpm = $("#auto-bpm").checked ? null : Number($("#c-bpm").value);
+  refresh();
+});
+
+$("#c-title").addEventListener("input", (e) => {
+  state.overrides.title = e.target.value;
+  refresh();
+});
+
+$("#c-artist").addEventListener("input", (e) => {
+  state.overrides.artist = e.target.value;
+  refresh();
+});
+
+$("#c-bars-per-line").addEventListener("change", (e) => {
+  state.overrides.bars_per_line = Number(e.target.value);
+  refresh();
+});
+
+$("#c-simplify").addEventListener("change", (e) => {
+  state.overrides.simplify = e.target.checked;
+  refresh();
+});
+
+$("#c-ascii").addEventListener("change", (e) => {
+  $("#ascii-pane").hidden = !e.target.checked;
 });
 
 loadTracks();
