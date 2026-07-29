@@ -68,6 +68,13 @@ tempo_arr, beats = librosa.beat.beat_track(y=y, sr=sr, units="frames")
 tempo = float(np.atleast_1d(tempo_arr)[0])
 beat_times = librosa.frames_to_time(beats, sr=sr)
 
+# librosa hands back an empty beat array (and tempo 0.0) when it finds no pulse
+# at all. Everything beat-synchronous below then degenerates rather than merely
+# shrinking: sync() on an empty index array returns ZERO columns, not the one
+# whole-track column its interior-boundary rule would suggest, so the chord and
+# structure passes get an empty feature matrix instead of a coarse one.
+has_beats = len(beats) > 0
+
 # beat_track runs on librosa's default 512-sample hop, but the chroma and MFCC
 # features below are computed at hop=2048. Beat frame indices are therefore on a
 # 4x finer grid than those arrays and cannot be used as column indices directly —
@@ -92,6 +99,18 @@ print(f"# beats     : {len(beat_times)}")
 if len(beat_times) > 1:
     ibi = np.diff(beat_times)
     print(f"beat IBI    : mean {ibi.mean()*1000:.1f} ms, std {ibi.std()*1000:.1f} ms")
+
+if not has_beats:
+    print(
+        "\nWARNING: no beats detected — the beat-synchronous passes are skipped.\n"
+        "  beat_track builds its onset envelope with aggregate=np.median across mel\n"
+        "  bins, so material with no transients or a sparse spectrum (pads, drones,\n"
+        "  pure tones) can read as beatless even when it is audibly rhythmic.\n"
+        "  Key, chroma, loudness, and spectral results below are unaffected.\n"
+        "  summary.json records tempo_bpm = null rather than 0.0, so downstream\n"
+        "  scripts ask for a tempo instead of analysing against a 0 BPM grid:\n"
+        "    python3 analyze_v3.py --audio <file> --bpm <tempo>"
+    )
 
 # Tempogram peak as cross-check (sometimes beat_track halves/doubles).
 oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop)
@@ -219,67 +238,73 @@ templates = chord_templates()
 tpl_names = [n for n, _ in templates]
 tpl_mat = np.stack([t for _, t in templates])  # (N_templates, 12)
 
-# Beat-synchronous chroma (median pooled), gives stable per-beat estimates.
-chroma_sync = librosa.util.sync(chroma_cqt, beat_frames_feat, aggregate=np.median)
-chroma_sync_n = chroma_sync / (np.linalg.norm(chroma_sync, axis=0, keepdims=True) + 1e-9)
-scores = tpl_mat @ chroma_sync_n  # (N_templates, N_beats)
-best_idx = scores.argmax(axis=0)
-beat_chords = [tpl_names[i] for i in best_idx]
-
-# Collapse repeats into chord segments (merge consecutive identical chords).
-segments = []
-for i, c in enumerate(beat_chords):
-    t0, t_end = float(seg_bounds[i]), float(seg_bounds[i + 1])
-    if segments and segments[-1][0] == c:
-        segments[-1] = (c, segments[-1][1], t_end)
-    else:
-        segments.append((c, t0, t_end))
-
-# Print first 60 segments.
-print("first chord segments (chord, start, end, duration):")
-for c, t0, t1 in segments[:60]:
-    print(f"  {c:<8}  {t0:6.2f} → {t1:6.2f}   ({t1-t0:5.2f}s)")
-print(f"... {len(segments)} total chord segments")
-
-# Chord histogram (by total time).
 from collections import defaultdict
-chord_time = defaultdict(float)
-for c, t0, t1 in segments:
-    chord_time[c] += (t1 - t0)
-top_chords = sorted(chord_time.items(), key=lambda kv: -kv[1])[:12]
-print("\ntop chords by total time:")
-for c, t in top_chords:
-    pct = 100 * t / duration
-    print(f"  {c:<8}  {t:6.2f}s  ({pct:5.1f}%)")
+
+segments: list[tuple[str, float, float]] = []
+top_chords: list[tuple[str, float]] = []
+
+if not has_beats:
+    print("skipped — chord detection pools chroma over the beat grid, which is empty.")
+else:
+    # Beat-synchronous chroma (median pooled), gives stable per-beat estimates.
+    chroma_sync = librosa.util.sync(chroma_cqt, beat_frames_feat, aggregate=np.median)
+    chroma_sync_n = chroma_sync / (np.linalg.norm(chroma_sync, axis=0, keepdims=True) + 1e-9)
+    scores = tpl_mat @ chroma_sync_n  # (N_templates, N_beats)
+    best_idx = scores.argmax(axis=0)
+    beat_chords = [tpl_names[i] for i in best_idx]
+
+    # Collapse repeats into chord segments (merge consecutive identical chords).
+    for i, c in enumerate(beat_chords):
+        t0, t_end = float(seg_bounds[i]), float(seg_bounds[i + 1])
+        if segments and segments[-1][0] == c:
+            segments[-1] = (c, segments[-1][1], t_end)
+        else:
+            segments.append((c, t0, t_end))
+
+    # Print first 60 segments.
+    print("first chord segments (chord, start, end, duration):")
+    for c, t0, t1 in segments[:60]:
+        print(f"  {c:<8}  {t0:6.2f} → {t1:6.2f}   ({t1-t0:5.2f}s)")
+    print(f"... {len(segments)} total chord segments")
+
+    # Chord histogram (by total time).
+    chord_time = defaultdict(float)
+    for c, t0, t1 in segments:
+        chord_time[c] += (t1 - t0)
+    top_chords = sorted(chord_time.items(), key=lambda kv: -kv[1])[:12]
+    print("\ntop chords by total time:")
+    for c, t in top_chords:
+        pct = 100 * t / duration
+        print(f"  {c:<8}  {t:6.2f}s  ({pct:5.1f}%)")
 
 # ------------------------- 5. Structural segmentation -----------------
 banner("STRUCTURE (self-similarity segmentation)")
 
-mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop)
-mfcc_sync = librosa.util.sync(mfcc, beat_frames_feat, aggregate=np.mean)
-# Normalize and build recurrence matrix; then agglomerative segmentation.
-R = librosa.segment.recurrence_matrix(
-    mfcc_sync, mode="affinity", sym=True, width=3
-)
-try:
-    boundaries_beats = librosa.segment.agglomerative(mfcc_sync, k=6)
-    boundary_beat_idx = boundaries_beats
-    # agglomerative() returns column indices into mfcc_sync, so a boundary at
-    # column i starts at seg_bounds[i] — same interior-boundary convention.
-    boundary_times = [
-        float(seg_bounds[i]) for i in boundary_beat_idx if i < len(seg_bounds)
-    ]
-    if not boundary_times or boundary_times[0] > 0.5:
-        boundary_times = [0.0] + boundary_times
-    if boundary_times[-1] < duration - 0.5:
-        boundary_times.append(float(duration))
-    print("section boundaries (s):")
-    for i in range(len(boundary_times) - 1):
-        a, b = boundary_times[i], boundary_times[i + 1]
-        print(f"  section {i+1}: {a:6.2f} → {b:6.2f}   ({b-a:5.2f}s)")
-except Exception as e:  # noqa: BLE001
-    print(f"agglomerative segmentation failed: {e}")
+if not has_beats:
+    print("skipped — segmentation pools MFCCs over the beat grid, which is empty.")
     boundary_times = [0.0, float(duration)]
+else:
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop)
+    mfcc_sync = librosa.util.sync(mfcc, beat_frames_feat, aggregate=np.mean)
+    try:
+        boundaries_beats = librosa.segment.agglomerative(mfcc_sync, k=6)
+        boundary_beat_idx = boundaries_beats
+        # agglomerative() returns column indices into mfcc_sync, so a boundary at
+        # column i starts at seg_bounds[i] — same interior-boundary convention.
+        boundary_times = [
+            float(seg_bounds[i]) for i in boundary_beat_idx if i < len(seg_bounds)
+        ]
+        if not boundary_times or boundary_times[0] > 0.5:
+            boundary_times = [0.0] + boundary_times
+        if boundary_times[-1] < duration - 0.5:
+            boundary_times.append(float(duration))
+        print("section boundaries (s):")
+        for i in range(len(boundary_times) - 1):
+            a, b = boundary_times[i], boundary_times[i + 1]
+            print(f"  section {i+1}: {a:6.2f} → {b:6.2f}   ({b-a:5.2f}s)")
+    except Exception as e:  # noqa: BLE001
+        print(f"agglomerative segmentation failed: {e}")
+        boundary_times = [0.0, float(duration)]
 
 # ------------------------- 6. Spectral character ----------------------
 banner("SPECTRAL CHARACTER")
@@ -338,7 +363,11 @@ summary = {
     "rms_dbfs": float(20 * np.log10(np.sqrt(np.mean(y**2)))),
     "lr_correlation": lr_corr,
     "side_to_mid_db": float(side_to_mid_db),
-    "tempo_bpm": tempo,
+    # null, not 0.0, when the tracker found no pulse — analyze_v3.pick_tempo
+    # treats a missing tempo as "pass --bpm", which is the right prompt. A 0.0
+    # would be accepted as a real tempo and silently poison everything downstream.
+    "tempo_bpm": tempo if has_beats else None,
+    "beats_detected": int(len(beats)),
     "tempogram_top_bpms": [float(b) for b in top_bpms],
     "half_time_suspected": half_time_suspected,
     "mean_chroma": {p: float(v) for p, v in zip(PITCHES, chroma_mean)},
