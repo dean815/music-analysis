@@ -41,6 +41,11 @@ examples/*/real_book.txt
 # Claude Code per-machine settings (permission allowlists, etc.)
 .claude/settings.local.json
 
+# Per-session git worktrees. Concurrent sessions each get their own checkout here
+# so they don't stage over each other — see CLAUDE.md. Machine-local state, and
+# each one contains a .git file that would otherwise show up as an untracked repo.
+.claude/worktrees/
+
 # Session-handoff scratch state (personal workflow notes, not project content)
 .remember/
 
