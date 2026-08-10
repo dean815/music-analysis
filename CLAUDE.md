@@ -82,3 +82,5 @@ way; the counts live in the commit messages.
 ```bash
 python3 -m pytest tests/ -q     # ~10s
 ```
+
+@.claude/dean-guidelines.md
