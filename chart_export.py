@@ -18,6 +18,15 @@ through **From audio analysis…**:
 
 The app owns finding the song's form. This file owns only seconds-to-bars.
 
+With `--lyrics`, **whisperX** (Bain et al., 2023, BSD-2) transcribes the vocal and
+aligns each word to the audio; every word is written into the bar where it
+starts, so the app can lay the words under the chords:
+
+    "lyrics": [{"text": "When", "bar": 0, "at": 0.25}, ...]   # "at": fraction of the bar
+
+Line breaks are left to the app, which follows the bar grid: whisperX's
+sentence breaks ignore the music.
+
 Setup (heavier than requirements.txt: PyTorch, about 1 GB; Python 3.10-3.12):
 
     python3 -m pip install -r requirements-engines.txt
@@ -119,14 +128,39 @@ def chart_bars(segments: list[tuple[float, float, str]], edges: list[tuple[float
     return [[chord_at(segments, s + (e - s) * (i + 0.5) / slots) for i in range(slots)] for s, e in edges]
 
 
+def lyric_words(segments: list[dict], edges: list[tuple[float, float]]) -> list[dict]:
+    """whisperX's aligned segments -> sung words placed in bars.
+
+    A word lands in the bar its onset falls in, at the fraction of that bar
+    before it. whisperX leaves a word it could not align (often a numeral)
+    without a start; it takes the previous word's onset so it is not lost.
+    Words outside every bar are dropped.
+    """
+    words, last = [], None
+    for seg in segments:
+        for w in seg.get("words", []):
+            t = w.get("start", last)
+            if t is None or not w.get("word", "").strip():
+                continue
+            last = t
+            for b, (s, e) in enumerate(edges):
+                if s <= t < e:
+                    words.append({"text": w["word"].strip(), "bar": b, "at": round((t - s) / (e - s), 3)})
+                    break
+    return words
+
+
 def analysis_result(title: str, beats: np.ndarray, downbeats: np.ndarray,
-                    segments: list[tuple[float, float, str]], slots: int) -> dict:
+                    segments: list[tuple[float, float, str]], slots: int,
+                    words: list[dict] | None = None) -> dict:
     edges = bar_edges(beats, downbeats)
     result: dict = {"version": 1, "title": title}
     if len(beats) > 1:
         result["tempoBpm"] = round(60.0 / float(np.median(np.diff(beats))), 1)
     result["meter"] = {"numerator": meter_numerator(beats, downbeats), "denominator": 4}
     result["bars"] = chart_bars(segments, edges, slots)
+    if words is not None:
+        result["lyrics"] = lyric_words(words, edges)
     return result
 
 
@@ -200,6 +234,18 @@ def run_btc(audio: Path, btc_dir: Path) -> list[tuple[float, float, str]]:
     return segments
 
 
+def run_whisperx(audio: Path, model_name: str, language: str | None) -> list[dict]:
+    """Transcribe, then align each word to the audio. CPU only: whisperX's
+    transcriber (CTranslate2) has no Apple GPU backend."""
+    import whisperx
+
+    samples = whisperx.load_audio(str(audio))
+    model = whisperx.load_model(model_name, "cpu", compute_type="int8", language=language)
+    result = model.transcribe(samples, batch_size=8)
+    align_model, metadata = whisperx.load_align_model(language_code=result["language"], device="cpu")
+    return whisperx.align(result["segments"], align_model, metadata, samples, "cpu")["segments"]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     paths.add_args(parser, audio=True)
@@ -208,6 +254,10 @@ def main() -> None:
                         help="Clone of github.com/jayg996/BTC-ISMIR19 (default: $BTC_DIR or engines/BTC-ISMIR19)")
     parser.add_argument("--title", help="Song title (default: the audio file's name)")
     parser.add_argument("--slots", type=int, default=2, help="Chords sampled per bar (default: 2, half bars)")
+    parser.add_argument("--lyrics", action="store_true", help="Also transcribe the vocal with whisperX and place each word in its bar")
+    parser.add_argument("--whisper-model", default="medium",
+                        help="whisperX model for --lyrics (default: medium; small is faster and misheard more on the spike track)")
+    parser.add_argument("--language", default="en", help="Sung language for --lyrics (default: en)")
     args = parser.parse_args()
 
     audio = paths.require(args.audio, "MUSIC_AUDIO")
@@ -217,12 +267,14 @@ def main() -> None:
 
     beats, downbeats = run_beat_this(audio)
     segments = run_btc(audio, args.btc_dir.resolve())
-    result = analysis_result(args.title or audio.stem, beats, downbeats, segments, args.slots)
+    words = run_whisperx(audio, args.whisper_model, args.language) if args.lyrics else None
+    result = analysis_result(args.title or audio.stem, beats, downbeats, segments, args.slots, words)
 
     out = paths.ensure_dir(args.out) / "chart.json"
     out.write_text(json.dumps(result, indent=1))
+    sung = f", {len(result['lyrics'])} words" if "lyrics" in result else ""
     print(f"{len(result['bars'])} bars, {result.get('tempoBpm')} BPM, "
-          f"{result['meter']['numerator']}/4 -> {out}")
+          f"{result['meter']['numerator']}/4{sung} -> {out}")
 
 
 if __name__ == "__main__":

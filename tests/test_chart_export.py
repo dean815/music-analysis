@@ -13,7 +13,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from chart_export import analysis_result, bar_edges, chord_at, harte_to_symbol, meter_numerator  # noqa: E402
+from chart_export import analysis_result, bar_edges, chord_at, harte_to_symbol, lyric_words, meter_numerator  # noqa: E402
 
 
 def grid(bars: int, per_bar: int = 4, beat: float = 0.5, start: float = 0.0):
@@ -78,3 +78,30 @@ def test_a_change_on_beat_three_splits_the_bar():
         "meter": {"numerator": 4, "denominator": 4},
         "bars": [["D", "D"], ["D", "E"]],
     }
+
+
+def test_each_word_lands_in_the_bar_its_onset_falls_in():
+    edges = [(0.0, 2.0), (2.0, 4.0)]
+    segments = [
+        {"words": [{"word": " When", "start": 0.5}, {"word": "you", "start": 1.0}, {"word": "tell", "start": 2.5}]},
+        {"words": [{"word": "late", "start": 9.0}]},  # after the last bar: dropped
+    ]
+    assert lyric_words(segments, edges) == [
+        {"text": "When", "bar": 0, "at": 0.25},
+        {"text": "you", "bar": 0, "at": 0.5},
+        {"text": "tell", "bar": 1, "at": 0.25},
+    ]
+
+
+def test_a_word_whisperx_could_not_align_takes_the_previous_onset():
+    edges = [(0.0, 2.0)]
+    segments = [{"words": [{"word": "in", "start": 1.0}, {"word": "1999"}, {"word": " "}]}]
+    assert lyric_words(segments, edges) == [{"text": "in", "bar": 0, "at": 0.5}, {"text": "1999", "bar": 0, "at": 0.5}]
+
+
+def test_lyrics_are_written_only_when_asked_for():
+    beats, downs = grid(1)
+    segments = [(0.0, 2.0, "D:maj")]
+    assert "lyrics" not in analysis_result("Song", beats, downs, segments, slots=1)
+    words = [{"words": [{"word": "la", "start": 0.0}]}]
+    assert analysis_result("Song", beats, downs, segments, slots=1, words=words)["lyrics"] == [{"text": "la", "bar": 0, "at": 0.0}]

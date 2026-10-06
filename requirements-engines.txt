@@ -7,3 +7,7 @@ beat_this @ https://github.com/CPJKU/beat_this/archive/main.zip
 # BTC is run from a clone (see chart_export.py); these are what its modules import.
 mir_eval>=0.7
 pyyaml>=6.0
+
+# Only for chart_export.py --lyrics. whisperX pins its own torch; install it
+# after the line above has settled.
+whisperx>=3.4
