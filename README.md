@@ -62,6 +62,7 @@ check that your install works and that the analysis is behaving.
 | `xml_guitars.py` | `--guitars-xml` | Pitch histograms per section for guitar/lead parts |
 | `generate_previews.py` | `--previews` (out) | Synthesizes audio + MIDI of hypothetical chord progressions |
 | `splice_transitions.py` | `--audio`, `--previews` | Crossfades synth previews into the start of your bounce for transition auditioning |
+| `chart_export.py` | `--audio`, `--out` | Bar-by-bar chord chart from two pretrained engines (beat_this downbeats, BTC chords), written as `chart.json` for the chord-chart-maker app's **From audio analysis…** import. Needs `requirements-engines.txt` and a BTC clone; see the script's docstring |
 | `real_book.py` | `--out` | Renders a Real Book-style ASCII lead sheet from `analyze_v3.py`'s chord chart, with loop detection and section labels. Override the detected structure with `--intro-end`, `--outro-start`, `--loop-len`, or the tempo with `--bpm` |
 | `gui/app.py` | `--out-root` | Local web GUI over the lead sheet: pick an analysed track, override the detected intro, outro, loop length, tempo and titles, and watch the chart redraw. Needs `requirements-gui.txt` |
 | `lead_sheet.py` | — | Shared module behind `real_book.py`: turns the chord chart into structured lead-sheet data (bars, sections, loop, departures), separately from rendering it. Import this rather than shelling out if you want the chart as data |

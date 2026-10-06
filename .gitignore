@@ -16,6 +16,9 @@ env/
 out/
 previews/
 
+# Third-party engine clones chart_export.py runs from (BTC is not on PyPI).
+engines/
+
 # The bundled example is tracked input data, but real_book.py --out examples/demo
 # writes its rendered chart back into that directory. Regenerable output, and the
 # README tells people to run exactly that command.
