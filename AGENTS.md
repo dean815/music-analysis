@@ -1,7 +1,5 @@
 # Working in this repo
 
-> **Codex mirror of `CLAUDE.md`.** Refresh this file whenever `CLAUDE.md` changes; edit `CLAUDE.md`, never this copy alone.
-
 More than one Claude Code session runs here at a time, against the same checkout.
 Everything below is the consequence of that.
 
@@ -85,6 +83,4 @@ way; the counts live in the commit messages.
 python3 -m pytest tests/ -q     # ~10s
 ```
 
-## Working guidelines
-
-`CLAUDE.md` pulls in `.claude/dean-guidelines.md` with an `@` import, which Codex does not resolve. Read that file before starting work and follow it.
+Read `.claude/dean-guidelines.md` before starting work and follow it. Claude Code loads it automatically through `CLAUDE.md`; other agents must open it themselves.
