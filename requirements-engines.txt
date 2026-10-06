@@ -1,0 +1,9 @@
+# Optional — only needed for chart_export.py. Pulls PyTorch (about 1 GB) and wants
+# Python 3.10-3.12; keep it out of requirements.txt so the analysis scripts stay light.
+-r requirements.txt
+torch>=2.6
+beat_this @ https://github.com/CPJKU/beat_this/archive/main.zip
+
+# BTC is run from a clone (see chart_export.py); these are what its modules import.
+mir_eval>=0.7
+pyyaml>=6.0
