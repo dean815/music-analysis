@@ -48,6 +48,12 @@ def test_a_downbeat_under_half_a_bar_after_the_last_is_a_glitch():
     assert bar_edges(beats, glitched) == [(0.0, 2.0), (2.0, 4.0), (4.0, 6.0)]
 
 
+def test_a_missed_downbeat_leaves_a_double_gap_that_splits_into_two_bars():
+    beats, downs = grid(5)
+    missed = np.delete(downs, 2)  # the downbeat at 4.0 s
+    assert bar_edges(beats, missed) == [(0.0, 2.0), (2.0, 4.0), (4.0, 6.0), (6.0, 8.0), (8.0, 10.0)]
+
+
 def test_meter_is_the_common_beat_count_between_downbeats():
     assert meter_numerator(*grid(4, per_bar=3)) == 3
     assert meter_numerator(*grid(4, per_bar=4)) == 4

@@ -68,23 +68,33 @@ def harte_to_symbol(label: str) -> str:
 
 
 def bar_edges(beats: np.ndarray, downbeats: np.ndarray) -> list[tuple[float, float]]:
-    """(start, end) seconds of each bar, one bar per downbeat.
+    """(start, end) seconds of each bar, one bar per downbeat, mended where the
+    tracker slipped.
 
-    A downbeat less than half a bar after the one before is a tracker glitch and
-    is dropped (one turned up on the spike track). The last bar has no next
-    downbeat, so it is given the median bar length.
+    On the spike track beat_this made both mistakes: an extra downbeat 0.44 s
+    after a real one, which is dropped (under half a bar), and eight downbeats
+    in a row a whole bar late, each gap two bars long, which are split back
+    into bars of the median length. The last bar has no next downbeat, so it is
+    given the median length too.
     """
     if len(downbeats) == 0:
         return []
-    beat = float(np.median(np.diff(beats))) if len(beats) > 1 else 0.5
+    if len(downbeats) > 1:
+        bar_len = float(np.median(np.diff(downbeats)))
+    else:
+        beat = float(np.median(np.diff(beats))) if len(beats) > 1 else 0.5
+        bar_len = beat * meter_numerator(beats, downbeats)
     kept = [float(downbeats[0])]
     for d in downbeats[1:]:
-        bar_len = (kept[-1] - kept[-2]) if len(kept) > 1 else beat * meter_numerator(beats, downbeats)
         if d - kept[-1] >= 0.5 * bar_len:
             kept.append(float(d))
-    bar_len = float(np.median(np.diff(kept))) if len(kept) > 1 else beat * meter_numerator(beats, downbeats)
-    ends = kept[1:] + [kept[-1] + bar_len]
-    return list(zip(kept, ends))
+    if len(kept) > 1:
+        bar_len = float(np.median(np.diff(kept)))  # again, without the glitches skewing it
+    edges: list[tuple[float, float]] = []
+    for start, end in zip(kept, kept[1:] + [kept[-1] + bar_len]):
+        n = max(1, round((end - start) / bar_len))
+        edges.extend((start + (end - start) * i / n, start + (end - start) * (i + 1) / n) for i in range(n))
+    return edges
 
 
 def meter_numerator(beats: np.ndarray, downbeats: np.ndarray) -> int:
