@@ -1,73 +1,40 @@
 # CLAUDE.md
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+Dean's portable guidelines. On his Mac these come from `~/.claude/CLAUDE.md`. This copy
+travels with the repo so cloud sessions behave the same way.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+## Build Mode: Prototype by Default
 
-## 1. Think Before Coding
+**Every build starts in prototype mode and stays there until Dean says otherwise.** The goal
+is a working thing he can look at, fast, so he can iterate. Throwaway is fine: anything worth
+publishing gets rebuilt clean later.
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+- **Get it running end to end first.** Thinnest slice that works in a real run, then widen.
+- **Decide, don't ask.** Pick sensible defaults and note them in one line. Ask only when a
+  wrong guess would make the result useless, and then ask one question.
+- **Skip tests, specs, plans and docs unless asked.** A quick run that proves it works is enough.
+- **Stub what's slow.** Fake external services, auth and hard integrations behind an obvious
+  seam, and say what's faked.
+- **No speculative structure.** No abstractions, config layers or error handling for cases
+  that haven't happened.
+- **Finish before polishing.** Keep going until the described thing exists.
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+This outranks project process rules (specs, TDD, worktrees, review gates, planning docs). A
+project's facts still apply, and so does safety: never commit or print secrets, never run
+destructive commands on real data, never touch production or send anything outward without
+asking.
 
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
----
+**Production mode starts only when Dean says so** ("clean this up", "productionize",
+"harden", "get this ready to ship"). Then follow the project's rules in full, add tests and
+handle errors.
 
 ## Working from a cloud session
 
-When `CLAUDE_CODE_REMOTE=true`, you are on a disposable Ubuntu VM, not Dean's Mac. This changes what you can rely on:
+When `CLAUDE_CODE_REMOTE=true`, you are on a disposable Ubuntu VM, not Dean's Mac:
 
-- **No local machine.** Dean's laptop is likely offline. You cannot reach it, and he may be reading your output on a phone. Keep responses scannable and decisions explicit.
-- **Only pushed state exists.** The repo was cloned from GitHub. Uncommitted or unpushed work on his machine is not here and never will be. If something referenced is missing, say so rather than reconstructing it from guesswork.
-- **Push is branch-scoped.** `git push` only works against the session's current working branch.
-- **Prefer durable output.** Work that only lives in the transcript is lost when the session expires. Commit plans, notes, and scaffolding to the repo.
-- **Ask less, decide more.** Round-trips are expensive when Dean is away from his desk. Make reasonable calls, state the assumption in one line, and keep going. Reserve questions for genuine forks where a wrong guess wastes the whole session.
+- **No local machine.** His laptop is likely offline, and he may be reading on a phone. Keep
+  responses scannable and decisions explicit.
+- **Only pushed state exists.** If something referenced is missing, say so rather than
+  reconstructing it from guesswork.
+- **Push is branch-scoped.** `git push` only works against the session's working branch.
+- **Prefer durable output.** Commit plans, notes and scaffolding; the transcript expires.

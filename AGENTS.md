@@ -1,58 +1,12 @@
 # Working in this repo
 
-More than one Claude Code session runs here at a time, against the same checkout.
-Everything below is the consequence of that.
-
-## Work in a worktree, not the shared checkout
-
-The repo root is shared. A linked worktree gets its own working tree *and* its own
-index, so two sessions cannot see or stage each other's edits:
-
-```bash
-git worktree add .claude/worktrees/<name> -b <branch> origin/main
-```
-
-`.claude/worktrees/` is gitignored. Remove yours when the branch is merged:
-
-```bash
-git worktree remove .claude/worktrees/<name>
-```
-
-## Branch from `origin/main`, never from HEAD
-
-```bash
-git checkout -b <name> origin/main      # not: git checkout -b <name>
-```
-
-HEAD in a shared checkout may be another session's branch. Cutting from it silently
-adopts their commits as ancestors of yours, and whichever PR merges first takes
-credit for both.
-
-That is not hypothetical. On 2026-07-29 a branch cut from a shared HEAD carried the
-half-time tests written for #10 into #11, a PR about demo audio. #11 merged first,
-so #10 merged as an empty commit and `git log -- tests/test_half_time.py` still
-points at the wrong PR.
-
-## Stage explicit paths
-
-```bash
-git add analyze.py tests/test_foo.py    # not: git add -A / git add .
-```
-
-The shared checkout may hold another session's uncommitted work, and
-`.claude/launch.json` is untracked. Name what you mean.
-
-## Confirm what actually landed
-
-After a squash merge, check the diff rather than the merge status:
-
-```bash
-git show --stat origin/main
-```
-
-An empty diff means your change reached `main` by another route — usually absorbed
-into someone else's PR — and the merge you just did was a no-op. A green "MERGED"
-does not by itself mean your code moved.
+## Storage & git lane (policy: ~/claude/git-strategy/DECISIONS.md, 2026-09-08)
+LANE: code
+- Git holds code and .claude/ config only. Every other file is gitignored data.
+- Code work: commit on main with a generated message. No branch, no PR.
+- Never create a worktree. One session works here at a time; for a second stream, clone to `~/claude/music-analysis-2`.
+- Stage explicit paths (`git add analyze.py tests/test_foo.py`, never `git add -A`): `.claude/launch.json` and `.codex/` are untracked.
+- Never write output outside this directory. Durability is the publish hook; do not add snapshot logic here.
 
 ## Verifying changes to analyze.py
 
