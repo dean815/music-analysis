@@ -62,3 +62,5 @@ examples/*/real_book.txt
 # ---------- OS junk ----------
 .DS_Store
 Thumbs.db
+# Dean's personal guidelines stay local in public repos
+.claude/dean-guidelines.md
