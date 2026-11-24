@@ -54,7 +54,7 @@ check that your install works and that the analysis is behaving.
 |---|---|---|
 | `demo_bounce.py` | `--out` | Renders a public-domain demo bounce (Pachelbel's *Canon in D* ground bass) so the audio scripts are runnable without private audio. Start here if you just want to see the pipeline work |
 | `analyze.py` | `--audio` | First-pass audio analysis: tempo, key (Krumhansl), chromagram, structural segmentation |
-| `analyze_v2.py` | `--audio` | Refined audio: bar-level chord smoothing, per-section key detection |
+| `analyze_v2.py` | `--audio` | **Legacy.** Bar-level chord smoothing and per-section key detection, superseded by `analyze_v3.py` and kept for its per-section key detection. Tuned for one slow ballad (beat tracking biased toward ~70 BPM, 4/4 assumed) |
 | `analyze_v3.py` | `--audio` | Fine-grained chord track with Viterbi smoothing, Dorian-vs-Aeolian diagnostic |
 | `melody.py` | `--audio` | Monophonic pitch extraction via pyin; tests Lydian #4 vs natural 4 |
 | `xml_analyze.py` | `--xml` | Symbolic analysis: exact notes from MusicXML, Roman numerals, key signature events |
@@ -68,6 +68,7 @@ check that your install works and that the analysis is behaving.
 | `lead_sheet.py` | — | Shared module behind `real_book.py`: turns the chord chart into structured lead-sheet data (bars, sections, loop, departures), separately from rendering it. Import this rather than shelling out if you want the chart as data |
 | `gui/serialize.py` | — | Shared module behind `gui/app.py`: turns a `LeadSheet` into the JSON the page draws, and into the `real_book.py` command that reproduces it |
 | `paths.py` | — | Shared config helper (env vars + argparse) used by all scripts |
+| `analysis_common.py` | — | Shared helpers for the analysis scripts: pitch names, Krumhansl-Kessler profiles, chord templates, bass chroma, the sticky Viterbi chord smoother, and the section banner |
 | `modes.py` | — | Shared modal-theory module: resolves a mode name into its diatonic pitch classes and tests a melody against its closest sibling mode. Used by `analyze_v3.py` and `melody.py` |
 | `modal_prior.py` | — | **Work-in-progress.** Scaffold for a modal-diatonic prior to bias chord detection toward harmonically plausible chords. The function body is intentionally unimplemented; see the docstring for the policy choices to fill in. |
 

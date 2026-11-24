@@ -17,10 +17,9 @@ import numpy as np
 import soundfile as sf
 
 import paths
+from analysis_common import KK_MAJOR, KK_MINOR, PITCHES, banner_with_width, chord_templates
 
-
-def banner(title: str) -> None:
-    print(f"\n{'=' * 60}\n{title}\n{'=' * 60}")
+banner = banner_with_width(60)
 
 
 def finite_or_none(x: float) -> float | None:
@@ -192,11 +191,7 @@ def suspect_half_time(
 
 
 # ------------------------- Key / mode profiles -------------------------
-PITCHES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-# Krumhansl-Kessler key profiles for major and minor; add Lydian/Mixolydian custom.
-KK_MAJOR = np.array([6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88])
-KK_MINOR = np.array([6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17])
+# Krumhansl-Kessler profiles (analysis_common) for major and minor; add Lydian/Mixolydian custom.
 # Lydian: like major but with #4 emphasized. Take major and swap weights of 4 and #4.
 LYDIAN = KK_MAJOR.copy()
 LYDIAN[5], LYDIAN[6] = KK_MAJOR[6] * 1.05, KK_MAJOR[5] * 0.6  # boost #4, weaken nat 4
@@ -219,27 +214,6 @@ def correlate_profile(chroma_vec: np.ndarray, profile: np.ndarray) -> tuple[int,
         if score > best_score:
             best_score, best_root = score, root
     return best_root, best_score
-
-
-# Build major / minor / sus4 / 7th templates and slide across 12 roots.
-def chord_templates() -> list[tuple[str, np.ndarray]]:
-    base = {
-        "":      [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],   # major triad
-        "m":     [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0],   # minor triad
-        "sus2":  [1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-        "sus4":  [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0],
-        "maj7":  [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1],
-        "7":     [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0],
-        "m7":    [1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0],
-        "add9":  [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0],
-    }
-    out = []
-    for quality, tpl in base.items():
-        v = np.array(tpl, dtype=float)
-        v /= np.linalg.norm(v)
-        for root in range(12):
-            out.append((f"{PITCHES[root]}{quality}", np.roll(v, root)))
-    return out
 
 
 def main() -> None:
@@ -372,7 +346,7 @@ def main() -> None:
     # ------------------------- 4. Chord estimation -------------------------
     banner("CHORD ESTIMATION (template matching)")
 
-    templates = chord_templates()
+    templates = chord_templates(weighted=False)
     tpl_names = [n for n, _ in templates]
     tpl_mat = np.stack([t for _, t in templates])  # (N_templates, 12)
 

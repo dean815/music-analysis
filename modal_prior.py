@@ -6,23 +6,23 @@ return a penalty in [0, 1] where 0 = fully diatonic (no penalty), 1 = fully out-
 This penalty gets subtracted from each chord template's cosine-similarity score
 during Viterbi decoding, biasing the chord track toward harmonically plausible chords.
 
-DESIGN TRADE-OFF — this is where your input matters:
+Status: not implemented. `modal_penalty()` raises NotImplementedError and
+nothing in the pipeline calls it yet. The open question is the penalty policy:
 
-  STRICT  → reject any chord with any out-of-key tone (no borrowed chords)
-           Cleaner output, but misses real modal mixture (e.g., your Gmaj7 turnaround).
+  STRICT    Reject any chord with any out-of-key tone (no borrowed chords).
+            Cleaner output, but misses real modal mixture (e.g. a Gmaj7
+            turnaround in D Lydian).
 
-  LENIENT → only penalize if MULTIPLE chord tones are out of key
-           Catches real borrowed chords (Gmaj7 in D Lydian) but lets through more noise.
+  LENIENT   Penalize only when several chord tones are out of key. Keeps real
+            borrowed chords but lets through more noise.
 
-  GRADUATED → fractional penalty proportional to how many notes are non-diatonic,
-              with a special low penalty for "common borrowings" (parallel major/minor).
-              Most musically nuanced, hardest to tune.
-
-Your call. The function signature is below; please fill in the body.
+  GRADUATED Penalty proportional to the share of non-diatonic tones, with a
+            lower penalty for common borrowings (parallel major/minor). The
+            most musically nuanced option and the hardest to tune.
 """
 from __future__ import annotations
 
-PITCHES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+from modes import PITCHES
 
 # Mode templates: scale degrees (0-11) from the tonic.
 MODE_DEGREES = {
@@ -36,10 +36,7 @@ MODE_DEGREES = {
 
 
 def chord_pitch_classes(chord_label: str) -> set[int]:
-    """Return the set of pitch classes (0-11) for a chord label like 'C#m7' or 'F#sus2'.
-
-    Already implemented — you don't need to change this.
-    """
+    """Return the set of pitch classes (0-11) for a chord label like 'C#m7' or 'F#sus2'."""
     # Parse root (1 or 2 chars).
     if len(chord_label) >= 2 and chord_label[1] == "#":
         root_name, quality = chord_label[:2], chord_label[2:]
@@ -71,42 +68,37 @@ def modal_penalty(chord_label: str, tonic: str, mode: str) -> float:
     0.0 = chord is fully diatonic (no penalty)
     1.0 = chord is maximally out of key (full penalty)
 
-    TODO: Implement this. The choices that matter:
+    Not implemented yet; see the module docstring. Open design questions:
 
-    1. How do you score a chord based on how many of its notes are out of key?
+    1. How should a chord be scored by how many of its notes are out of key?
        - All-or-nothing? (any out-of-key note → penalty = 1.0)
        - Linear? (1 out-of-key note out of 4 → penalty = 0.25)
        - Square/exponential? (penalize multi-note violations more steeply)
 
-    2. Should you give a "discount" for common borrowed chords?
+    2. Should common borrowed chords get a discount?
        Common borrowings in modal music:
        - bVII in major (Mixolydian borrowing)
        - IV in minor (Dorian borrowing)
        - bII / Neapolitan (Phrygian flavor)
        - bVI in major (parallel minor borrowing)
-       If you want this, list which (root, quality) borrowings should get a discount
-       and how much (e.g. multiply penalty by 0.3).
+       This needs a list of discounted (root, quality) borrowings and a factor
+       (e.g. multiply the penalty by 0.3).
 
     3. Should the penalty depend on which scale degree the chord's ROOT is on?
        (A non-diatonic chord rooted on the tonic is usually a Picardy / parallel
        mode shift — different feel than a non-diatonic chord rooted on a random
        non-scale tone.)
 
-    Suggested signature for your implementation:
-        chord_pcs = chord_pitch_classes(chord_label)
-        mode_pcs = mode_pitch_classes(tonic, mode)
-        out_of_key_notes = chord_pcs - mode_pcs
-        ...
-
-    Aim for ~5-10 lines of code. The exact policy is your compositional preference.
+    Any policy starts from the same set:
+        out_of_key = chord_pitch_classes(chord_label) - mode_pitch_classes(tonic, mode)
     """
-    raise NotImplementedError("Please implement the modal penalty policy you'd like to use.")
+    raise NotImplementedError("modal_penalty: penalty policy not chosen yet")
 
 
-# Quick sanity test once you fill in the function:
+# Expected behaviour for a few cases, for checking an implementation:
 if __name__ == "__main__":
     test_cases = [
-        # (chord, tonic, mode, what you'd expect roughly)
+        # (chord, tonic, mode, expected penalty)
         ("Dmaj7",  "D",  "lydian",  "0 — fully in key"),
         ("Emaj7",  "D",  "lydian",  "0 — the Lydian II, fully in key"),
         ("Gmaj7",  "D",  "lydian",  "non-zero — G natural is out of D Lydian (Mixolydian borrowing)"),

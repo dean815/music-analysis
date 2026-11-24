@@ -1,12 +1,9 @@
 # Working in this repo
 
-## Storage & git lane (policy: ~/claude/git-strategy/DECISIONS.md, 2026-09-08)
-LANE: code
-- Git holds code and .claude/ config only. Every other file is gitignored data.
-- Code work: commit on main with a generated message. No branch, no PR.
-- Never create a worktree. One session works here at a time; for a second stream, clone to `~/claude/music-analysis-2`.
-- Stage explicit paths (`git add analyze.py tests/test_foo.py`, never `git add -A`): `.claude/launch.json` and `.codex/` are untracked.
-- Never write output outside this directory. Durability is the publish hook; do not add snapshot logic here.
+## Committing
+
+- Git holds code and agent config (`.claude/settings.json`, `.codex/config.toml`). Audio, generated output and other data files are gitignored.
+- Stage explicit paths (`git add analyze.py tests/test_foo.py`, never `git add -A`), so untracked machine-local files such as `.claude/settings.local.json` stay out of commits.
 
 ## Verifying changes to analyze.py
 
@@ -36,5 +33,3 @@ way; the counts live in the commit messages.
 ```bash
 python3 -m pytest tests/ -q     # ~10s
 ```
-
-Read `.claude/dean-guidelines.md` before starting work and follow it. Claude Code loads it automatically through `CLAUDE.md`; other agents must open it themselves.
