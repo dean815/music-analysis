@@ -22,7 +22,7 @@ nothing in the pipeline calls it yet. The open question is the penalty policy:
 """
 from __future__ import annotations
 
-PITCHES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+from modes import PITCHES
 
 # Mode templates: scale degrees (0-11) from the tonic.
 MODE_DEGREES = {

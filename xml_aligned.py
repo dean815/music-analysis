@@ -9,6 +9,9 @@ from collections import defaultdict
 from music21 import converter, harmony, key as m21key, roman, note, chord as m21chord
 
 import paths
+from analysis_common import banner_with_width
+
+banner = banner_with_width(70)
 
 _parser = argparse.ArgumentParser(description=__doc__)
 paths.add_args(_parser, xml=True, needs_out=False)
@@ -25,10 +28,6 @@ def proj_time(measure_num: int, beat: float = 1.0) -> float:
 
 def bounce_time(measure_num: int, beat: float = 1.0) -> float:
     return proj_time(measure_num, beat) - BOUNCE_OFFSET_SEC
-
-
-def banner(t):
-    print(f"\n{'=' * 70}\n{t}\n{'=' * 70}")
 
 
 score = converter.parse(str(XML))

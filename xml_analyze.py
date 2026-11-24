@@ -12,15 +12,12 @@ from pathlib import Path
 from music21 import converter, harmony, key, note, pitch, roman, stream, chord as m21chord
 
 import paths
+from analysis_common import PITCHES, banner
 
 _parser = argparse.ArgumentParser(description=__doc__)
 paths.add_args(_parser, xml=True, needs_out=False)
 _args = _parser.parse_args()
 XML = paths.require(_args.xml, "MUSIC_XML")
-
-
-def banner(t):
-    print(f"\n{'=' * 64}\n{t}\n{'=' * 64}")
 
 
 # ---------------- Load ----------------
@@ -84,7 +81,6 @@ for c in chord_events[:40]:
 
 # ---------------- Per-measure unique pitch classes -----------------
 banner("PER-MEASURE PITCH-CLASS CONTENT (unique pitches, ignoring octave)")
-PITCHES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
 def pcs_in_measure(m):

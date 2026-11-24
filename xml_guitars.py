@@ -7,6 +7,9 @@ from pathlib import Path
 from music21 import converter, note, chord as m21chord, harmony, roman, key as m21key
 
 import paths
+from analysis_common import banner_with_width
+
+banner = banner_with_width(70)
 
 _parser = argparse.ArgumentParser(description=__doc__)
 paths.add_args(_parser, guitars=True, needs_out=False)
@@ -19,9 +22,6 @@ BOUNCE_OFFSET_SEC = (BOUNCE_START_BAR - 1) * 4 * (60 / BPM)
 
 def bar_to_bounce(m): return ((m - 1) * 4) * (60 / BPM) - BOUNCE_OFFSET_SEC
 def bar_to_project(m): return ((m - 1) * 4) * (60 / BPM)
-
-
-def banner(t): print(f"\n{'=' * 70}\n{t}\n{'=' * 70}")
 
 
 score = converter.parse(str(XML))
