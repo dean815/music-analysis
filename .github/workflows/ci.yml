@@ -23,7 +23,7 @@ jobs:
 
       - name: Import-check shared modules
         run: |
-          python -c "import paths, modes, lead_sheet, generate_previews, analyze"
+          python -c "import paths, modes, analysis_common, lead_sheet, generate_previews, analyze, analyze_v2, analyze_v3"
           python -c "import gui.app"
 
       - name: Unit tests
